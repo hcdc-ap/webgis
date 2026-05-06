@@ -1,6 +1,6 @@
 {
-  "name": "HCDC-WEBGIS",
-  "short_name": "HCDC-WEBGIS",
+  "name": "HCDC-Sentinel WebGIS",
+  "short_name": "HCDC-Sentinel WebGIS",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f7f6",
