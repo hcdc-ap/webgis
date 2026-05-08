@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HCDC-Sentinel WebGIS</title>
+    <title>HCDC-WEBGIS</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#008b99" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -124,13 +124,13 @@
 
       sectionA .signin {
         position: absolute;
-        width: 350px; /* Giữ nguyên */
+        width: 500px; /* Giữ nguyên */
         background: #222; /* Giữ nguyên */
         z-index: 1000; /* Giữ nguyên */
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 10px; /* ✅ GIẢM TỪ 40PX → 20PX */
+        padding: 20px; /* ✅ GIẢM TỪ 40PX → 20PX */
         border-radius: 4px; /* Giữ nguyên */
         box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9); /* Giữ nguyên */
         /* Thêm dòng này để căn chỉnh tốt hơn */
@@ -1052,32 +1052,79 @@
         width: 100%;
         overflow: hidden; /* 👈 THÊM DÒNG NÀY */
       }
+      /* Thay thế toàn bộ .password-container bằng đoạn này */
+      .inputBox.password-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+      }
+
+      .inputBox.password-container input {
+        flex: 1;
+        background: #333;
+        border: none;
+        outline: none;
+        padding: 15px 10px;
+        border-radius: 4px;
+        color: #fff;
+        font-weight: 500;
+        font-size: 1.5em;
+        width: 100%; /* Đảm bảo input chiếm toàn bộ không gian */
+      }
 
       .password-toggle {
-        position: absolute;
-        right: 10px;
-        top: 70%;
-        transform: translateY(-50%);
+        display: inline-block;
+        margin-left: 5px; /* Khoảng cách nhỏ giữa input và nút mắt */
         cursor: pointer;
-        color: #999; /* Màu xám nhạt, không nổi bật quá */
-        background: transparent; /* 👈 LOẠI BỎ BACKGROUND HOÀN TOÀN */
-        border: none; /* Loại bỏ viền nếu có */
-        padding: 0; /* Đảm bảo không có padding làm to icon */
+        color: #999;
+        background: transparent;
+        border: none;
+        padding: 0;
         margin: 0;
-        font-size: 16px; /* Điều chỉnh kích thước icon phù hợp */
+        font-size: 16px;
         transition: all 0.2s ease;
-        box-shadow: none !important;
-        z-index: 1; /* Đảm bảo nút mắt nằm trên trường mật khẩu */
-        line-height: 1; /* Loại bỏ khoảng trắng thừa */
+        z-index: 1;
+        line-height: 1;
       }
 
       .password-toggle:hover {
-        color: #333; /* Đậm hơn khi hover */
-        transform: translateY(-50%) scale(1.05); /* Nhấp nháy nhẹ, không to quá */
+        color: #333;
+        transform: scale(1.05);
       }
 
       /* Tối ưu thêm: đảm bảo icon không bị cắt */
       .password-toggle i {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+        pointer-events: none;
+      }
+      /* CHỈ ÁP DỤNG CHO span TRONG PASSWORD-CONTAINER */
+      .inputBox.password-container span {
+        position: absolute;
+        right: -50px;
+        top: 100%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #999;
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font-size: 16px;
+        transition: all 0.2s ease;
+        z-index: 10;
+        line-height: 1;
+      }
+
+      .inputBox.password-container span:hover {
+        color: #fff;
+        transform: translateY(-50%) scale(1.05);
+      }
+
+      .inputBox.password-container span i {
         display: inline-block;
         width: 16px;
         height: 16px;
@@ -1759,7 +1806,9 @@
                     autocomplete="username"
                   />
                 </div>
-                <i class="fa-solid fa-lock"> Password</i>
+                <i class="fa-solid fa-lock" style="margin-bottom: 5px">
+                  Password</i
+                >
                 <div class="inputBox password-container">
                   <!-- THÊM CONTAINER CHO PASSWORD -->
                   <input
@@ -1851,12 +1900,11 @@
                     id="current-password"
                     required
                     autocomplete="current-password"
-                    style="font-size: 0.9em; padding: 20px 10px 8px"
                   />
                   <span
                     class="password-toggle"
                     onclick="togglePassword('current-password')"
-                    style="right: 8px"
+                  
                   >
                     <i class="fas fa-eye" id="toggle-icon-current"></i>
                   </span>
@@ -1873,12 +1921,11 @@
                     autocomplete="new-password"
                     pattern=".{6,}"
                     title="Mật khẩu phải có ít nhất 6 ký tự"
-                    style="font-size: 0.9em; padding: 20px 10px 8px"
                   />
                   <span
                     class="password-toggle"
                     onclick="togglePassword('new-password')"
-                    style="right: 8px"
+                    
                   >
                     <i class="fas fa-eye" id="toggle-icon-new"></i>
                   </span>
@@ -1892,12 +1939,11 @@
                     id="confirm-password"
                     required
                     autocomplete="new-password"
-                    style="font-size: 0.9em; padding: 20px 10px 8px"
                   />
                   <span
                     class="password-toggle"
                     onclick="togglePassword('confirm-password')"
-                    style="right: 8px"
+                   
                   >
                     <i class="fas fa-eye" id="toggle-icon-confirm"></i>
                   </span>
@@ -3340,7 +3386,9 @@
             // 1. Tải dữ liệu ban đầu
             const { data, error } = await supabaseClient
               .from('view_report_results')
-              .select('*');
+              .select('*')
+              .order('sampling_date', { ascending: false }) // Lấy ngày mới nhất lên trước
+              .limit(3000); // Tăng giới hạn lên 3000 dòng (hoặc con số bạn ước tính)
 
             if (error) throw error;
 
@@ -3798,15 +3846,20 @@
         }
 
         function setupSlider() {
+          console.log('Tổng số dòng trong allData:', allData.length);
           const dates = allData.map((d) => new Date(d.sampling_date).getTime());
           const minDate = Math.min(...dates);
-          const maxDate = Math.max(...dates);
+
+          // Thay vì lấy Max trong dữ liệu, lấy thẳng ngày hôm nay
+          const maxDate = new Date().getTime();
+
           const slider = document.getElementById('time-slider');
           if (slider.noUiSlider) slider.noUiSlider.destroy();
-          // --- TÍNH TOÁN KHOẢNG 1 THÁNG (30 NGÀY) ---
+
           const oneMonthInMs = 30 * 24 * 60 * 60 * 1000;
+
+          // Mặc định chọn từ 1 tháng trước cho đến Hôm nay
           let defaultStart = maxDate - oneMonthInMs;
-          // Phòng trường hợp dữ liệu tổng cộng chưa tới 1 tháng
           if (defaultStart < minDate) defaultStart = minDate;
           noUiSlider.create(slider, {
             start: [defaultStart, maxDate], // Mốc bắt đầu là 1 tháng trước, kết thúc là ngày mới nhất
@@ -4286,43 +4339,66 @@
           };
           reader.readAsArrayBuffer(file);
         }
-        //Exceute Writing
+        //EXCEUTE WRITING EXCEL TO DATABASE
         async function executeImport() {
           if (tempValidData.length === 0) return;
+
           const btn = document.getElementById('btn-final-import');
           const isOverwrite =
             document.getElementById('overwrite-checkbox').checked;
+
           btn.disabled = true;
           btn.innerHTML =
             '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+
           try {
+            // --- BƯỚC QUAN TRỌNG: Lọc trùng ngay trong mảng trước khi gửi đi ---
+            // Logic: Giữ lại dòng cuối cùng nếu có mã mẫu trùng nhau trong file
+            const uniqueData = Array.from(
+              new Map(
+                tempValidData.map((item) => [item.sample_code, item])
+              ).values()
+            );
+
+            console.log(
+              `Đang nạp: ${uniqueData.length} dòng (Đã lọc bỏ trùng lặp nội bộ)`
+            );
+
             let result;
             if (isOverwrite) {
-              // Upsert dựa trên sample_code (Đảm bảo cột này đã được set UNIQUE trong SQL)
+              // Dùng upsert nếu người dùng đồng ý ghi đè
               result = await supabaseClient
                 .from('water_reports')
-                .upsert(tempValidData, {
+                .upsert(uniqueData, {
                   onConflict: 'sample_code',
                 });
             } else {
+              // Dùng insert nếu không ghi đè (sẽ báo lỗi nếu mã mẫu đã tồn tại trong DB)
               result = await supabaseClient
                 .from('water_reports')
-                .insert(tempValidData);
+                .insert(uniqueData);
             }
-            if (result.error) {
-              // Nếu lỗi do cột vẫn không khớp, thông báo sẽ hiện ở đây
-              throw result.error;
-            } else {
-              showToast(
-                'success',
-                `Thành công! Đã nạp ${tempValidData.length} mẫu vào hệ thống.`
-              );
-              closeImportModal();
-              if (typeof init === 'function') init();
-            }
+
+            if (result.error) throw result.error;
+
+            showToast(
+              'success',
+              `Thành công! Đã nạp ${uniqueData.length} mẫu vào hệ thống.`
+            );
+            closeImportModal();
+            if (typeof init === 'function') init();
           } catch (err) {
             console.error('Lỗi insert/upsert:', err);
-            showToast('error', 'Lỗi hệ thống: ' + (err.hint || err.message));
+            // Hiển thị thông báo lỗi thân thiện hơn
+            let msg = err.message;
+            if (err.code === '23505')
+              msg =
+                "Mã mẫu đã tồn tại trong hệ thống. Vui lòng chọn 'Ghi đè' để cập nhật.";
+            if (err.code === '21000')
+              msg =
+                'Có dữ liệu trùng lặp trong file. Hệ thống đã tự động lọc nhưng vẫn gặp lỗi, vui lòng kiểm tra lại file Excel.';
+
+            showToast('error', 'Lỗi hệ thống: ' + msg);
           } finally {
             btn.disabled = false;
             btn.innerHTML =
