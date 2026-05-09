@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HCDC-WEBGIS</title>
+    <title>HCDC-SENTINEL WEBGIS</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#008b99" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -1709,6 +1709,171 @@
         opacity: 1; /* Hiện rõ khi Admin rà chuột vào */
         background-color: #2c3e50 !important;
       }
+      #ai-chat-wrapper {
+        position: fixed;
+        bottom: 25px;
+        left: 25px; /* Đổi từ right sang left */
+        z-index: 9999;
+      }
+      #ai-chat-trigger {
+        background: linear-gradient(135deg, #008b99, #006a75);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+        transition: 0.3s;
+      }
+      #ai-chat-trigger:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+      }
+
+      #ai-chat-window {
+        display: none;
+        width: 350px;
+        height: 500px;
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        flex-direction: column;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        position: absolute;
+        bottom: 70px;
+        left: 0;
+        animation: slideIn 0.3s ease;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      #ai-chat-header {
+        background: #008b99;
+        color: white;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .ai-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ai-avatar {
+        background: rgba(255, 255, 255, 0.2);
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .ai-name {
+        font-weight: bold;
+        font-size: 14px;
+      }
+      .ai-status {
+        font-size: 11px;
+        opacity: 0.8;
+      }
+
+      #ai-chat-body {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        display: flex;
+        overflow-y: auto;
+        flex-direction: column;
+        gap: 10px;
+        padding-bottom: 20px;
+      }
+
+      .chat-msg {
+        padding: 10px 14px;
+        border-radius: 15px;
+        font-size: 14px;
+        max-width: 86%;
+        line-height: 1.4;
+      }
+      .chat-msg.bot {
+        background: white;
+        color: #333;
+        align-self: flex-start;
+        border-bottom-left-radius: 2px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        word-wrap: break-word; /* Đảm bảo chữ không bị tràn ra ngoài */
+        white-space: pre-line; /* Giữ định dạng xuống dòng của AI */
+      }
+      .chat-msg.user {
+        background: #008b99;
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 2px;
+      }
+
+      #ai-chat-footer {
+        padding: 10px;
+        display: flex;
+        gap: 5px;
+        border-top: 1px solid #eee;
+      }
+      #ai-chat-input {
+        flex: 1;
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        border-radius: 20px;
+        outline: none;
+        font-size: 14px;
+      }
+      #ai-chat-footer button {
+        background: #008b99;
+        color: white;
+        border: none;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .pulse-red {
+        background: #e74c3c;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+        animation: pulse-red 1.5s infinite;
+      }
+
+      @keyframes pulse-red {
+        0% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+        }
+        70% {
+          transform: scale(1);
+          box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+        }
+        100% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+        }
+      }
     </style>
   </head>
 
@@ -1904,7 +2069,6 @@
                   <span
                     class="password-toggle"
                     onclick="togglePassword('current-password')"
-                  
                   >
                     <i class="fas fa-eye" id="toggle-icon-current"></i>
                   </span>
@@ -1925,7 +2089,6 @@
                   <span
                     class="password-toggle"
                     onclick="togglePassword('new-password')"
-                    
                   >
                     <i class="fas fa-eye" id="toggle-icon-new"></i>
                   </span>
@@ -1943,7 +2106,6 @@
                   <span
                     class="password-toggle"
                     onclick="togglePassword('confirm-password')"
-                   
                   >
                     <i class="fas fa-eye" id="toggle-icon-confirm"></i>
                   </span>
@@ -2507,6 +2669,7 @@
 
               <button
                 class="btn-activate-layer"
+                id="btn-goiy"
                 onclick="showOptimalPoints()"
                 style="flex: 1"
               >
@@ -5465,48 +5628,87 @@
         function parseAIAnalysis(text) {
           if (!text || typeof text !== 'string') return [];
 
-          // Loại bỏ HTML tags
-          text = text.replace(/<\/?[^>]+>/g, '');
+          // 1. Dọn dẹp HTML và chuẩn hóa xuống dòng
+          let cleanText = text
+            .replace(/<\/?[^>]+>/g, '')
+            .replace(/\r\n/g, '\n');
 
-          const lines = text
-            .replace(/\r\n/g, '\n')
-            .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0);
+          // 2. Tách Section bằng Regex linh hoạt (chấp nhận cả 1., **1.**, hoặc [1.])
+          const rawSections = cleanText.split(
+            /(?=\n\d+\.|\n\*\*\d+\.|\n\[\d+|^ \d+\.|^\*\*\d+\.|^\[\d+)/g
+          );
 
           const sections = [];
-          let currentSection = null;
 
-          // Chỉ match section khi có "1.", "2.", "3." đứng riêng
-          const sectionRegex = /^(\d+)\.\s+(.+)$/;
+          for (let sec of rawSections) {
+            if (!sec.trim()) continue;
 
-          for (const line of lines) {
-            const sectionMatch = line.match(sectionRegex);
+            const lines = sec.trim().split('\n');
+            let rawTitle = lines[0].trim();
+            let rawBody = lines.slice(1).join('\n').trim();
 
-            if (sectionMatch) {
-              if (currentSection) sections.push(currentSection);
+            // --- "GIÁP" BẢO VỆ TIÊU ĐỀ ---
+            // Nếu dòng đầu không có số thứ tự hoặc quá dài (>100 ký tự), tống nó vào Body
+            if (!/^(\*\*|\[)?\d+/.test(rawTitle) || rawTitle.length > 100) {
+              rawBody = rawTitle + '\n' + rawBody;
+              rawTitle = 'Thông tin bổ sung';
+            }
 
-              currentSection = {
-                title: `${sectionMatch[1]}. ${sectionMatch[2]}`,
-                content: [],
-              };
-            } else if (currentSection) {
-              // Nhận diện gạch đầu dòng — chỉ khi có dấu đặc biệt đứng đầu
-              if (/^[•\-+*→]/.test(line)) {
-                currentSection.content.push({
-                  type: 'item',
-                  text: line,
-                });
-              } else {
-                currentSection.content.push({
-                  type: 'paragraph',
-                  text: line,
-                });
+            // Làm sạch tiêu đề (Xóa **, [], dấu chấm thừa)
+            const cleanTitle = rawTitle.replace(/[\*\\[\]]/g, '').trim();
+
+            const currentSection = {
+              title: cleanTitle,
+              content: [],
+            };
+
+            // 3. XỬ LÝ NỘI DUNG (Paragraph vs Item)
+            const bodyLines = rawBody
+              .split('\n')
+              .filter((l) => l.trim().length > 0);
+
+            for (let line of bodyLines) {
+              let type = 'paragraph';
+              let processedText = line.trim();
+
+              // Nhận diện gạch đầu dòng (Sử dụng cấu trúc cũ của sếp)
+              if (
+                /^[•\-+*→]/.test(processedText) ||
+                /^\d+\s*[a-z]\)/i.test(processedText)
+              ) {
+                type = 'item';
               }
+
+              // --- "VŨ KHÍ" FORMATTING (Markdown + Highlights) ---
+              processedText = processedText
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Chuyển ** thành <b>
+                .replace(
+                  /(^|\s)(Tăng)(?=\s|$|[.,;:\-_])/g,
+                  '$1<span class="trend-highlight trend-increase">$2</span>'
+                )
+                .replace(
+                  /(^|\s)(Giảm)(?=\s|$|[.,;:\-_])/g,
+                  '$1<span class="trend-highlight trend-decrease">$2</span>'
+                )
+                .replace(
+                  /(^|\s)(Ổn định)(?=\s|$|[.,;:\-_])/g,
+                  '$1<span class="trend-highlight trend-stable">$2</span>'
+                )
+                .replace(
+                  /(\d+\.?\d*[mg/LNTU%])/g,
+                  '<span style="font-weight:bold;">$1</span>'
+                ); // Đậm đơn vị
+
+              currentSection.content.push({
+                type: type,
+                text: processedText,
+              });
+            }
+
+            if (currentSection.title || currentSection.content.length > 0) {
+              sections.push(currentSection);
             }
           }
-
-          if (currentSection) sections.push(currentSection);
 
           return sections;
         }
@@ -5570,41 +5772,27 @@
       </div>
     `;
 
-            // XỬ LÝ CÁC SECTION
+            // --- ĐOẠN CODE HIỂN THỊ ĐÃ SỬA LỖI .replace ---
             for (const sec of sections) {
-              html += `
-        <div class="section-header">${sec.title}</div>
-        <div class="ai-text">
-      `;
-
-              for (const content of sec.content) {
-                let processedText = content.text;
-
-                if (content.type === 'item') {
-                  // ✅ SỬA REGEX: CHỈ HIGHLIGHT KHI ĐỨNG RIÊNG
-                  // Trong hàm loadAIInsights(), trong phần xử lý nội dung:
-                  processedText = processedText
-                    // ✅ CHỈ MATCH KHI "Tăng" ĐỨNG RIÊNG HOẶC SAU DẤU CÁCH
-                    .replace(
-                      /(^|\s)(Tăng)(?=\s|$|[.,;:\-_+*/(){}\[\]<>'"?!])/g,
-                      '$1<span class="trend-highlight trend-increase">$2</span>'
-                    )
-                    .replace(
-                      /(^|\s)(Giảm)(?=\s|$|[.,;:\-_+*/(){}\[\]<>'"?!])/g,
-                      '$1<span class="trend-highlight trend-decrease">$2</span>'
-                    )
-                    .replace(
-                      /(^|\s)(Ổn định)(?=\s|$|[.,;:\-_+*/(){}\[\]<>'"?!])/g,
-                      '$1<span class="trend-highlight trend-stable">$2</span>'
-                    )
-                    .replace(
-                      /(\d+\.?\d*[mg/LNTU%])/g,
-                      '<span style="font-weight:bold !important;">$1</span>'
-                    );
-                }
-
-                html += `<div style="font-weight:normal !important;">${processedText}</div>`;
+              // 1. In tiêu đề Section
+              if (sec.title) {
+                html += `<div class="section-header" style="margin-top:15px; font-weight:bold; color: #1a73e8;">${sec.title}</div>`;
               }
+
+              // 2. Vì sec.content giờ là một Mảng, mình phải lặp qua từng phần tử của nó
+              html += `<div class="ai-text" style="margin-bottom:10px;">`;
+
+              sec.content.forEach((item) => {
+                // Vì text đã được "nấu chín" (format <b>, highlight) trong hàm parseAIAnalysis
+                // nên ở đây mình chỉ việc in ra thôi, cực kỳ nhẹ máy!
+                const marginStyle =
+                  item.type === 'item'
+                    ? 'margin-left:15px; margin-bottom:5px;'
+                    : 'margin-bottom:8px;';
+                const bullet = item.type === 'item' ? '• ' : '';
+
+                html += `<div style="${marginStyle} line-height:1.5;">${bullet}${item.text}</div>`;
+              });
 
               html += `</div>`;
             }
@@ -5652,47 +5840,67 @@
           }
         }
 
-        let alertZoneLayer = null;
+        let alertZoneLayer = null; // Chứa Polygons (Phường)
+        let alertPointLayer = L.layerGroup(); // Chứa Markers (Cơ sở)
         let isAlertActive = false;
+
         async function toggleRiskLayer() {
           const btn = document.querySelector('.btn-activate-layer');
           if (!window.hcmGeoJSON)
             return showToast('error', 'Chưa tải xong bản đồ.');
 
+          // --- TRƯỜNG HỢP TẮT CẢNH BÁO ---
           if (isAlertActive) {
             if (alertZoneLayer) map.removeLayer(alertZoneLayer);
+            if (alertPointLayer) {
+              alertPointLayer.clearLayers();
+              map.removeLayer(alertPointLayer);
+            }
             btn.innerHTML = '<i class="fa-solid fa-layer-group"></i> CẢNH BÁO';
             btn.classList.remove('active-alert');
             isAlertActive = false;
             return;
           }
 
+          // --- TRƯỜNG HỢP BẬT CẢNH BÁO ---
           try {
-            const { data, error } = await supabaseClient
+            const { data: insight, error: insightError } = await supabaseClient
               .from('ai_daily_insights')
               .select('*')
               .order('prediction_date', { ascending: false })
               .limit(1)
               .single();
 
-            if (error || !data)
+            if (insightError || !insight)
               return showToast('warning', 'Thiếu dữ liệu phân tích.');
 
-            const rawWards = data.affected_wards || [];
-            const cleanWardsToAlert = rawWards.map((w) =>
-              String(w).toLowerCase().trim()
+            // Chuyển danh sách địa bàn thành chữ thường để so khớp chính xác
+            const rawNames = insight.affected_wards || [];
+            const cleanNames = rawNames.map((n) =>
+              String(n).toLowerCase().trim()
             );
-            const aiAnalysis = data.analysis_text || 'Chưa có nhận định.';
 
-            // Biến để đếm chính xác số xã thực tế xuất hiện trên bản đồ
+            // Lấy tọa độ các cơ sở/điểm rủi ro
+            const { data: locations } = await supabaseClient
+              .from('risk_locations')
+              .select('*');
+
             let matchedWardNames = new Set();
 
+            // Khởi tạo Layer Group cho Marker nếu chưa có
+            if (!alertPointLayer) alertPointLayer = L.layerGroup();
+            alertPointLayer.clearLayers();
+
+            const aiAnalysis =
+              insight.analysis_text || 'Chưa có nhận định chuyên sâu.';
+
+            // --- TẦNG 1: VẼ POLYGON (PHƯỜNG) ---
             alertZoneLayer = L.geoJSON(window.hcmGeoJSON, {
               filter: function (feature) {
                 if (!feature.properties?.tenXa) return false;
                 const name = feature.properties.tenXa.trim().toLowerCase();
-                const isMatched = cleanWardsToAlert.includes(name);
-                if (isMatched) matchedWardNames.add(name); // Lưu tên xã vào Set (để không trùng)
+                const isMatched = cleanNames.includes(name);
+                if (isMatched) matchedWardNames.add(name);
                 return isMatched;
               },
               style: {
@@ -5707,86 +5915,153 @@
                 const density =
                   p.dienTich > 0 ? (p.danSo / p.dienTich).toFixed(0) : 0;
 
-                // Sử dụng thẻ <details> để tạo hiệu ứng "Xem thêm" tự động
+                // Giữ nguyên Popup Phường "Đẹp" của sếp
                 const popupContent = `
-                    <div class="risk-popup-container">
-                        <div class="risk-popup-header">
-                            <span class="risk-label">CAO</span>
-                            <b>${p.tenXa.toUpperCase()}</b>
+            <div class="risk-popup-container">
+                <div class="risk-popup-header">
+                    <span class="risk-label">CAO</span>
+                    <b>${p.tenXa.toUpperCase()}</b>
+                </div>
+                <div class="risk-popup-body">
+                    <table class="risk-info-table">
+                        <tr><td><i class="fa-solid fa-users"></i> Dân số:</td><td><b>${p.danSo.toLocaleString()}</b> người</td></tr>
+                        <tr><td><i class="fa-solid fa-vector-square"></i> Diện tích:</td><td><b>${
+                          p.dienTich
+                        }</b> km²</td></tr>
+                        <tr><td><i class="fa-solid fa-chart-area"></i> Mật độ:</td><td><b>${density}</b> người/km²</td></tr>
+                    </table>
+                    <hr class="popup-divider">
+                    <details class="ai-details-toggle">
+                        <summary><b><i class="fa-brands fa-openai"></i> HCDC Sentinel System </b> More...</summary>
+                        <div class="ai-text-content">
+                            ${aiAnalysis.replace(/\n/g, '<br>')}
                         </div>
-                        <div class="risk-popup-body">
-                            <table class="risk-info-table">
-                            <tr><td><i class="fa-solid fa-users"></i> Dân số:</td><td><b>${p.danSo.toLocaleString()}</b> người</td></tr>
-                            <tr><td><i class="fa-solid fa-vector-square"></i> Diện tích:</td><td><b>${
-                              p.dienTich
-                            }</b> km²</td></tr>
-                            <tr><td><i class="fa-solid fa-chart-area"></i> Mật độ:</td><td><b>${density}</b> người/km²</td></tr>
-                            </table>
-                            
-                            <hr class="popup-divider">
-                            
-                            <details class="ai-details-toggle">
-                                <summary><b><i class="fa-brands fa-openai"></i> HCDC Sentinel Monitoring System </b> More...</summary>
-                                <div class="ai-text-content">
-                                    ${aiAnalysis.replace(/\n/g, '<br>')}
-                                </div>
-                            </details>
-                        </div>
-                    </div>
-                `;
+                    </details>
+                </div>
+            </div>
+        `;
                 layer.bindPopup(popupContent, { maxWidth: 350 });
               },
             }).addTo(map);
 
-            if (matchedWardNames.size > 0) {
-              map.fitBounds(alertZoneLayer.getBounds(), { padding: [30, 30] });
+            // --- TẦNG 2: VẼ MARKER (CƠ SỞ) ---
+            // --- TẦNG 2: VẼ MARKER (CƠ SỞ) ---
+            if (locations) {
+              locations.forEach((loc) => {
+                // 1. Kiểm tra tên rỗng
+                const locName = (loc.name || '').toLowerCase().trim();
+
+                // 2. KIỂM TRA TỌA ĐỘ (Cực kỳ quan trọng để tránh lỗi getLatLng)
+                if (
+                  locName &&
+                  cleanNames.includes(locName) &&
+                  loc.lat &&
+                  loc.lng
+                ) {
+                  const marker = L.marker([loc.lat, loc.lng], {
+                    icon: L.divIcon({
+                      className: 'risk-marker-pulse',
+                      html: `<div class="pulse-red"><i class="fa-solid fa-triangle-exclamation"></i></div>`,
+                      iconSize: [30, 30],
+                    }),
+                  }).bindPopup(`
+            <div style="text-align:justify;">
+                <b style="color:#e74c3c;">⚠️ VỊ TRÍ RỦI RO</b><br>
+                <b>${loc.name}</b><br>
+                <small>Tọa độ: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(
+                    4
+                  )}</small><br>
+                <small>Loại hình: ${loc.type}</small>
+            </div>
+          `);
+                  marker.addTo(alertPointLayer);
+                }
+              });
+            }
+            alertPointLayer.addTo(map);
+
+            // --- CÁCH TÍNH BOUNDS AN TOÀN TUYỆT ĐỐI ---
+            let bounds = L.latLngBounds(); // Khởi tạo vùng chứa trống
+            let hasValidData = false;
+
+            // Nếu có Phường, mở rộng vùng chứa theo Phường
+            if (alertZoneLayer && alertZoneLayer.getLayers().length > 0) {
+              bounds.extend(alertZoneLayer.getBounds());
+              hasValidData = true;
+            }
+
+            // Nếu có Marker, mở rộng vùng chứa theo Marker
+            if (alertPointLayer && alertPointLayer.getLayers().length > 0) {
+              alertPointLayer.eachLayer((layer) => {
+                bounds.extend(layer.getLatLng());
+              });
+              hasValidData = true;
+            }
+
+            // Chỉ Zoom khi thực sự có dữ liệu hợp lệ
+            if (hasValidData) {
+              map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+
               btn.innerHTML =
                 '<i class="fa-solid fa-circle-stop"></i> TẮT CẢNH BÁO';
               btn.classList.add('active-alert');
               isAlertActive = true;
-              // Thông báo dựa trên Set.size sẽ luôn chuẩn (Ví dụ: hiện đúng 2 vùng)
+
               showToast(
                 'warning',
-                `Đã xác định rủi ro tại ${matchedWardNames.size} địa bàn tiêu điểm.`
+                `Xác định rủi ro tại ${matchedWardNames.size} phường và ${
+                  alertPointLayer.getLayers().length
+                } cơ sở.`
               );
             } else {
-              showToast('error', 'Không tìm thấy địa bàn khớp trên bản đồ.');
+              showToast(
+                'error',
+                'Dữ liệu phân tích không khớp với bất kỳ tọa độ nào trên bản đồ.'
+              );
             }
           } catch (err) {
-            console.error(err);
+            console.error('Lỗi khi bật lớp cảnh báo:', err);
+            showToast('error', 'Có lỗi xảy ra khi xử lý dữ liệu bản đồ.');
           }
         }
-        // 0. Khai báo biến toàn cục ở đầu file JS
-        let optimalLayerGroup = L.layerGroup();
 
-        /**
-         * Hiển thị các điểm lấy mẫu tối ưu dựa trên Thông tư 52/2024/TT-BYT
-         * Tích hợp logic Toggle, tính toán mức độ ưu tiên và giao diện báo cáo.
-         */
+        let optimalLayerGroup = L.featureGroup(); // Dùng FeatureGroup thay vì LayerGroup để có hàm getBounds()
+        let isOptimalActive = false;
         async function showOptimalPoints() {
-          // Logic Toggle: Nhấn để bật, nhấn lại để tắt
-          if (
-            window.optimalLayerGroup &&
-            map.hasLayer(window.optimalLayerGroup)
-          ) {
-            map.removeLayer(window.optimalLayerGroup);
-            return;
+          const btnOptimal = document.getElementById('btn-goiy');
+
+          // 1. LOGIC TOGGLE: Nếu đang bật thì thực hiện Tắt
+          if (isOptimalActive) {
+            if (map.hasLayer(optimalLayerGroup)) {
+              map.removeLayer(optimalLayerGroup);
+            }
+            optimalLayerGroup.clearLayers(); // Xóa hết các điểm cũ
+            btnOptimal.innerHTML =
+              '<i class="fa-solid fa-wand-magic-sparkles"></i> GỢI Ý';
+            btnOptimal.classList.remove('active-alert');
+            isOptimalActive = false;
+            return; // Thoát hàm
           }
 
+          // 2. GỌI DỮ LIỆU TỪ SUPABASE
           const { data, error } = await supabaseClient.rpc(
             'get_optimized_sampling_points'
           );
+
           if (error) return showToast('error', error.message);
 
-          window.optimalLayerGroup = L.featureGroup().addTo(map);
+          if (!data || data.length === 0) {
+            return showToast('warning', 'Dữ liệu tối ưu chưa sẵn sàng.');
+          }
+
+          // 3. KHỞI TẠO VÀ VẼ ĐIỂM
+          optimalLayerGroup.addTo(map);
 
           data.forEach((item) => {
-            // Lấy số lượng mẫu cần thiết cho phường này (ví dụ: 5 mẫu)
-            const count = item.num_samples_here;
+            const count = parseInt(item.num_samples_here) || 1;
 
             for (let i = 0; i < count; i++) {
-              // TẠO TỌA ĐỘ RIÊNG BIỆT (JITTER)
-              // Biến thiên khoảng 0.002 độ (tương đương bán kính ~200-300m)
+              // Jitter tọa độ để không bị đè lên nhau
               const randomLat = item.lat + (Math.random() - 0.5) * 0.004;
               const randomLng = item.lng + (Math.random() - 0.5) * 0.004;
 
@@ -5797,42 +6072,55 @@
                 icon: L.divIcon({
                   className: 'sampling-dot',
                   html: `<div style="background-color: ${badgeColor}; width: 22px; height: 22px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-                            <i class="fa-solid fa-droplet" style="font-size: 10px;"></i>
+                               <i class="fa-solid fa-droplet" style="font-size: 10px;"></i>
                            </div>`,
                   iconSize: [22, 22],
                   iconAnchor: [11, 11],
                 }),
               }).bindPopup(`
-                <div style="font-family: sans-serif;">
+                <div style="font-family: sans-serif; min-width: 200px;">
                     <b style="color:${badgeColor};">💧 MẪU NGOẠI KIỂM #${
                 i + 1
               }</b><br>
-                    <hr>
-                    <b>Phường:</b> ${item.ten_xa}<br>
-                    <b>Tọa độ:</b> ${randomLat.toFixed(6)}, ${randomLng.toFixed(
-                6
-              )}<br>
-                    <p style="font-size: 11px; color: #666;">Nhân viên y tế lấy mẫu tại vòi nước hộ dân gần nhất trong khu vực này.</p>
+                    <hr style="margin: 5px 0">
+                    <b>Địa bàn:</b> ${item.ten_xa}<br>
+                    <b>Chỉ số rủi ro:</b> ${(item.risk_score / 10000).toFixed(
+                      1
+                    )}/10<br>
+                    <p style="font-size: 11px; color: #666; margin-top: 5px;">
+                        <i class="fa-solid fa-circle-info"></i> Vị trí dựa trên TT 52/2024/TT-BYT.
+                    </p>
                     <a href="https://www.google.com/maps/search/?api=1&query=${randomLat},${randomLng}" target="_blank" 
-                       style="display: block; text-align: center; background: #008b99; color: white; padding: 5px; border-radius: 4px; text-decoration: none; margin-top: 5px;">
-                       🎯 Dẫn đường (Google Maps)
+                       style="display: block; text-align: center; background: #008b99; color: white; padding: 6px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                       🎯 Google Maps dẫn đường
                     </a>
                 </div>
             `);
 
-              marker.addTo(window.optimalLayerGroup);
+              marker.addTo(optimalLayerGroup);
             }
           });
 
-          map.fitBounds(window.optimalLayerGroup.getBounds(), {
-            padding: [30, 30],
-          });
-          showToast(
-            'success',
-            `Đã xác định vị trí cho ${
-              window.optimalLayerGroup.getLayers().length
-            } mẫu ngoại kiểm.`
-          );
+          // 4. KIỂM TRA BOUNDS VÀ ZOOM
+          const bounds = optimalLayerGroup.getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+
+            // Cập nhật giao diện nút bấm
+            btnOptimal.innerHTML =
+              '<i class="fa-solid fa-circle-stop"></i> TẮT GỢI Ý';
+            btnOptimal.classList.add('active-alert');
+            isOptimalActive = true;
+
+            showToast(
+              'success',
+              `Đã xác định ${
+                optimalLayerGroup.getLayers().length
+              } vị trí tối ưu.`
+            );
+          } else {
+            showToast('error', 'Tọa độ không hợp lệ.');
+          }
         }
 
         async function handleAdminSync() {
@@ -5931,7 +6219,88 @@
           );
           showToast('success', 'Tải file thành công!');
         }
+        function toggleAIChat() {
+          const chat = document.getElementById('ai-chat-window');
+          chat.style.display =
+            chat.style.display === 'none' || chat.style.display === ''
+              ? 'flex'
+              : 'none';
+        }
 
+        function handleChatKey(e) {
+          if (e.key === 'Enter') sendChatToAI();
+        }
+
+        async function sendChatToAI() {
+          const input = document.getElementById('ai-chat-input');
+          const body = document.getElementById('ai-chat-body');
+          const question = input.value.trim();
+          if (!question) return;
+
+          body.innerHTML += `<div class="chat-msg user">${question}</div>`;
+          input.value = '';
+          body.scrollTop = body.scrollHeight;
+
+          const typingId = 'typing-' + Date.now();
+          body.innerHTML += `<div class="chat-msg bot" id="${typingId}"><span class="spinner-border spinner-border-sm"></span> Đang phân tích cơ sở dữ liệu...</div>`;
+          body.scrollTop = body.scrollHeight;
+
+          try {
+            let smartSummary = 'Dữ liệu hiện tại chưa được đồng bộ.';
+
+            if (window.allData && allData.length > 0) {
+              const total = allData.length;
+              const fails = allData.filter(
+                (d) => d.danh_gia_tu_dong === 'Không đạt'
+              );
+
+              // Sử dụng chính xác tên cột: ward_commune và csccn_name
+              const criticalPoints = [
+                ...new Set(
+                  fails.map((d) => `${d.ward_commune} (${d.csccn_name})`)
+                ),
+              ].slice(0, 10);
+
+              smartSummary = `
+        - Báo cáo chất lượng nước toàn hệ thống.
+        - Tổng số mẫu ghi nhận: ${total.toLocaleString()} mẫu.
+        - Tình trạng: ${fails.length} mẫu KHÔNG ĐẠT (${(
+                (fails.length / total) *
+                100
+              ).toFixed(2)}%).
+        - Các khu vực/cơ sở trọng điểm cần giám sát: ${
+          criticalPoints.length > 0
+            ? criticalPoints.join(', ')
+            : 'Tất cả đều đạt Quy chuẩn'
+        }.
+        - Metadata: Dữ liệu được trích xuất từ view_report_results vào lúc ${new Date().toLocaleTimeString(
+          'vi-VN'
+        )}.
+      `;
+            }
+
+            const { data, error } = await supabaseClient.functions.invoke(
+              'hcdc-chatbot',
+              {
+                body: { prompt: question, dataSummary: smartSummary },
+              }
+            );
+
+            const botArea = document.getElementById(typingId);
+            if (error) throw error;
+
+            if (data && data.answer) {
+              // Hiển thị nội dung với định dạng chuyên nghiệp
+              botArea.innerHTML = data.answer
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            }
+          } catch (err) {
+            document.getElementById(typingId).innerText =
+              'Sự cố kết nối: ' + err.message;
+          }
+          body.scrollTop = body.scrollHeight;
+        }
         //INIT()
         init();
       </script>
@@ -6067,6 +6436,45 @@
                 <i class="fas fa-database mr-2"></i> Xác nhận nhập dữ liệu
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+      <div id="ai-chat-wrapper">
+        <button id="ai-chat-trigger" onclick="toggleAIChat()">
+        <i class="fa-solid fa-a"></i>
+          <span>Sentinel WebGIS</span>
+        </button>
+
+        <div id="ai-chat-window">
+          <div id="ai-chat-header">
+            <div class="ai-info">
+              <div class="ai-avatar">
+                <i class="fa-solid fa-shield-virus"></i>
+              </div>
+              <div>
+                <div class="ai-name">AI Assistant for HCDC</div>
+                <div class="ai-status">Online now</div>
+              </div>
+            </div>
+            <button onclick="toggleAIChat()" class="close-chat">&times;</button>
+          </div>
+
+          <div id="ai-chat-body">
+            <div class="chat-msg bot">
+              Chào sếp! Em là trợ lý Sentinel WebGIS. Sếp cần em phân tích gì không ạ?
+            </div>
+          </div>
+
+          <div id="ai-chat-footer">
+            <input
+              type="text"
+              id="ai-chat-input"
+              placeholder="Hỏi về rủi ro, Thông tư 52..."
+              onkeypress="handleChatKey(event)"
+            />
+            <button onclick="sendChatToAI()">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
           </div>
         </div>
       </div>
