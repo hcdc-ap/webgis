@@ -1711,8 +1711,8 @@
       }
       #ai-chat-wrapper {
         position: fixed;
-        bottom: 25px;
-        left: 25px; /* Đổi từ right sang left */
+        bottom: 55px;
+        right: 180px; /* Đổi từ right sang left */
         z-index: 9999;
       }
       #ai-chat-trigger {
@@ -1744,7 +1744,7 @@
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
         position: absolute;
         bottom: 70px;
-        left: 0;
+        right: 0;
         animation: slideIn 0.3s ease;
       }
       @keyframes slideIn {
@@ -1873,6 +1873,70 @@
           transform: scale(0.95);
           box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
         }
+      }
+      /* Container tổng của bộ lọc thời gian */
+      .time-filter-container {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 20px;
+      }
+
+      #date-label {
+        font-weight: bold;
+        color: #008b99;
+        display: block;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      /* Tùy chỉnh Slider noUiSlider */
+      .noUi-connect {
+        background: #008b99 !important; /* Màu xanh HCDC */
+      }
+
+      .noUi-handle {
+        border-radius: 50% !important;
+        cursor: pointer !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      /* Layout ô nhập ngày */
+      .date-input-group {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 5px;
+        margin-top: 15px;
+      }
+
+      .date-field {
+        flex: 1;
+      }
+
+      .date-field label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #008b99;
+        margin-bottom: 3px;
+        display: block;
+      }
+
+      .date-field input {
+        width: 80%;
+        padding: 5px 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 11px;
+        color: #333;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      .date-field input:focus {
+        border-color: #008b99;
+        box-shadow: 0 0 0 2px rgba(0, 139, 153, 0.1);
       }
     </style>
   </head>
@@ -2187,20 +2251,35 @@
             </button>
           </div>
         </div>
-
         <div class="filter-group">
           <label class="filter-label">Khoảng thời gian lấy mẫu</label>
-          <div id="time-slider"></div>
-          <div
-            id="date-label"
-            style="
-              text-align: center;
-              font-size: 11px;
-              font-weight: bold;
-              color: var(--primary);
-              margin: 5px 0 10px;
-            "
-          ></div>
+          <div class="time-filter-container">
+            <span
+              id="date-label"
+              style="
+                text-align: center;
+                font-size: 11px;
+                font-weight: bold;
+                color: var(--primary);
+                margin: 5px 0 10px;
+              "
+              >Đang tải...</span
+            >
+
+            <div id="time-slider"></div>
+
+            <div class="date-input-group">
+              <div class="date-field">
+                <label>Từ ngày</label>
+                <input type="date" id="input-start" />
+              </div>
+              <div class="date-field">
+                <label>Đến ngày</label>
+                <input type="date" id="input-end" />
+              </div>
+            </div>
+          </div>
+
           <!-- Nút Play sẽ có dạng: -->
           <button id="btn-play" class="btn btn-sm">▶ Time Series</button>
         </div>
@@ -3544,53 +3623,53 @@
         // --- 3. CÁC HÀM XỬ LÝ DỮ LIỆU ---
         async function init() {
           try {
-            console.log('🚀 Đang khởi tạo hệ thống...');
+            console.log('🚀 Đang khởi tạo hệ thống Sentinel-AI...');
+            let allFetchedData = [];
+            let from = 0;
+            let to = 999;
+            let hasMore = true;
 
-            // 1. Tải dữ liệu ban đầu
-            const { data, error } = await supabaseClient
-              .from('view_report_results')
-              .select('*')
-              .order('sampling_date', { ascending: false }) // Lấy ngày mới nhất lên trước
-              .limit(3000); // Tăng giới hạn lên 3000 dòng (hoặc con số bạn ước tính)
+            // 1. Tải toàn bộ dữ liệu từ quá khứ đến hiện tại (Chiến thuật Chia để trị)
+            while (hasMore) {
+              const { data: batch, error } = await supabaseClient
+                .from('view_report_results')
+                .select('*')
+                .order('sampling_date', { ascending: false })
+                .range(from, to);
 
-            if (error) throw error;
+              if (error) throw error;
 
-            if (data && data.length > 0) {
-              allData = data
-                .filter((d) => d.sampling_date)
-                .sort(
-                  (a, b) =>
-                    new Date(a.sampling_date) - new Date(b.sampling_date)
-                );
-            }
+              allFetchedData = allFetchedData.concat(batch);
 
-            console.log(`📊 Đã tải ${allData.length} mẫu dữ liệu`);
-            // Thêm vào hàm init() của bạn
-            window.addEventListener('resize', function () {
-              const mapContainer = document.getElementById('map');
-              const tableContainer = document.getElementById('table-area');
-
-              // Đảm bảo Leaflet map được resize
-              if (map) {
-                map.invalidateSize();
+              if (batch.length < 1000) {
+                hasMore = false; // Đã lấy hết sạch dữ liệu
+              } else {
+                from += 1000;
+                to += 1000;
               }
-
-              // Tính toán lại chiều cao cho bảng
-              const containerHeight =
-                document.getElementById('main').offsetHeight;
-              const mapHeight = mapContainer.offsetHeight;
-              tableContainer.style.maxHeight =
-                containerHeight - mapHeight + 'px';
-            });
-            // Ẩn trang đổi mật khẩu khi khởi động
-            const changePasswordOverlay = document.getElementById(
-              'change-password-overlay'
-            );
-            if (changePasswordOverlay) {
-              changePasswordOverlay.style.display = 'none';
             }
-            // 2. Khởi tạo danh sách Đơn vị/CSCCN
-            const wards = [...new Set(allData.map((d) => d.csccn_name))].sort();
+
+            // Tiền xử lý dữ liệu: Ép kiểu Date ngay từ đầu để tránh lỗi "Invalid Date"
+            allData = allFetchedData
+              .map((d) => ({
+                ...d,
+                sampling_date: d.sampling_date
+                  ? new Date(d.sampling_date)
+                  : null,
+              }))
+              .filter(
+                (d) => d.sampling_date && !isNaN(d.sampling_date.getTime())
+              )
+              .sort((a, b) => a.sampling_date - b.sampling_date);
+
+            console.log(`📊 Tổng kho: ${allData.length} mẫu. Năm tìm thấy:`, [
+              ...new Set(allData.map((d) => d.sampling_date.getFullYear())),
+            ]);
+
+            // 2. Khởi tạo danh sách Đơn vị (CSCCN)
+            const wards = [...new Set(allData.map((d) => d.csccn_name))]
+              .filter((w) => w)
+              .sort();
             const wSelect = document.getElementById('f-ward');
             wSelect.innerHTML = '<option value="all">-- Tất cả --</option>';
             wards.forEach((w) => {
@@ -3600,67 +3679,100 @@
               wSelect.appendChild(option);
             });
 
-            // 3. Tải ranh giới & dữ liệu phụ
+            // 3. Tải ranh giới & bản đồ phụ
             await loadHCMBoundary();
             await loadRiskLocations();
 
-            // 4. Cấu hình Slider
+            // 4. Cấu hình Slider (Tầm nhìn từ 2024, Tiêu điểm 2026)
             setupSlider();
 
             // 5. Lọc và vẽ lần đầu
             applyFilters();
 
-            // ==================== REALTIME - SỬA Ở ĐÂY ====================
-            console.log('📡 Đang thiết lập Realtime...');
+            // 6. Realtime Listener
+            setupRealtime();
 
+            // Resize logic
+            window.addEventListener('resize', handleResize);
+            console.log('✅ Hệ thống WebGIS HCDC đã sẵn sàng.');
+          } catch (err) {
+            console.error('❌ Lỗi khởi tạo:', err.message);
+            showToast('error', 'Không thể kết nối cơ sở dữ liệu.');
+          }
+        }
+        async function setupRealtime() {
+          try {
+            console.log('📡 Đang thiết lập kênh Realtime cho Sentinel-AI...');
+
+            // 1. Dọn dẹp kênh cũ để tránh bị trùng lặp listener khi refresh
             await supabaseClient.removeChannel(
               supabaseClient.channel('hcdc-realtime')
             );
 
-            // 2. Thiết lập kênh mới: .on TRƯỚC, .subscribe SAU
+            // 2. Khởi tạo kênh mới lắng nghe bảng water_reports
             const channel = supabaseClient
               .channel('hcdc-realtime')
               .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'water_reports' },
-                (payload) => {
-                  console.log('Cập nhật mới:', payload);
-                  if (typeof updateUI === 'function') updateUI(payload);
+                {
+                  event: '*', // Lắng nghe mọi sự kiện: INSERT, UPDATE, DELETE
+                  schema: 'public',
+                  table: 'water_reports',
+                },
+                async (payload) => {
+                  console.log('🔔 Có cập nhật mới từ hiện trường:', payload);
+
+                  // Khi có dữ liệu mới, mình cần làm 2 việc:
+                  // A. Thông báo cho người dùng
+                  showToast(
+                    'info',
+                    'Hệ thống vừa nhận được dữ liệu lấy mẫu mới!'
+                  );
+
+                  // B. Tải lại dữ liệu hoặc cập nhật UI (tùy sếp muốn reload nhẹ hay nặng)
+                  // Cách nhẹ nhất: Gọi lại hàm init để đồng bộ lại toàn bộ kho dữ liệu
+                  // Hoặc đơn giản là thông báo sếp nhấn F5 để làm mới hoàn toàn.
+                  if (typeof updateUI === 'function') {
+                    updateUI();
+                    // Nếu sếp đã có hàm updateUI riêng để xử lý payload thì gọi ở đây
+                    // Nếu không, sếp có thể dùng: location.reload(); để "chắc cú"
+                  }
                 }
               )
               .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                  console.log('✅ Realtime đã thông suốt!');
+                  console.log(
+                    '✅ Kênh Realtime đã thông suốt. Đang canh gác dữ liệu!'
+                  );
                 }
               });
-
-            console.log('✅ Hệ thống WebGIS HCDC đã sẵn sàng.');
           } catch (err) {
-            console.error('❌ Lỗi khởi tạo hệ thống:', err.message);
-            console.error(err);
+            console.error('❌ Lỗi thiết lập Realtime:', err);
           }
         }
         let idwDebounceTimer;
-
         function applyFilters() {
           const slider = document.getElementById('time-slider');
-          if (!slider.noUiSlider) return;
+          if (!slider || !slider.noUiSlider) return;
+
           const [start, end] = slider.noUiSlider.get().map((v) => parseInt(v));
           const general = document.getElementById('f-general').value;
           const ward = document.getElementById('f-ward').value;
-          const checked = Array.from(
+          const checkedParams = Array.from(
             document.querySelectorAll('.f-param:checked')
           ).map((c) => c.value);
-          // Bước A: Lấy dữ liệu cho Thống kê (Chỉ lọc theo Thời gian và Trạm)
+
+          // Lọc dữ liệu theo thời gian và địa bàn trước (cho Thống kê)
           statsData = allData.filter((d) => {
-            const time = new Date(d.sampling_date).getTime();
+            const time = d.sampling_date.getTime();
             return (
               time >= start &&
               time <= end &&
               (ward === 'all' || d.csccn_name === ward)
             );
           });
-          // Bước B: Lấy dữ liệu cho Bảng và Bản đồ (Lọc toàn bộ điều kiện)
+
+          // Lọc sâu hơn cho Bản đồ và Bảng
           filteredData = statsData.filter((d) => {
             const mGen =
               general === 'all' ||
@@ -3668,16 +3780,21 @@
                 ? d.danh_gia_tu_dong !== 'Đạt'
                 : d.danh_gia_tu_dong === general);
             const mParam =
-              checked.length === 0 || checked.some((p) => d[p] === 'K');
+              checkedParams.length === 0 ||
+              checkedParams.some((p) => d[p] === 'K');
             return mGen && mParam;
           });
-          updateUI();
+
+          updateUI(); // Cập nhật Map, Table, Badge
+
+          // Debounce IDW để không bị lag khi kéo Slider nhanh
           clearTimeout(idwDebounceTimer);
           idwDebounceTimer = setTimeout(() => {
             const param = document.getElementById('idw-selector').value;
             updateIDW(param);
           }, 300);
-          // Cập nhật biểu đồ ngay cả khi đang đóng để khi mở ra là có dữ liệu mới
+
+          // Cập nhật biểu đồ nếu đang mở
           if (
             document.getElementById('analytics-overlay').style.display ===
             'flex'
@@ -3687,78 +3804,112 @@
         }
 
         function updateUI() {
-          markers.clearLayers(); // Thường là markerClusterGroup
-          monitoringPointsLayer.clearLayers();
+          // 1. Dọn dẹp các lớp dữ liệu cũ
+          if (markers) markers.clearLayers(); // Lớp Cluster
+          if (monitoringPointsLayer) monitoringPointsLayer.clearLayers(); // Lớp điểm đơn lẻ
+
           const heatPoints = [];
           const tbody = document.getElementById('table-body');
-          tbody.innerHTML = '';
-          document.getElementById(
-            'stat-count'
-          ).innerHTML = `Tìm thấy: <span class="highlight">${filteredData.length}</span> mẫu`;
+          if (tbody) tbody.innerHTML = '';
+
+          // Cập nhật số lượng tìm thấy
+          const statCountEl = document.getElementById('stat-count');
+          if (statCountEl) {
+            statCountEl.innerHTML = `Tìm thấy: <span class="highlight">${filteredData.length}</span> mẫu`;
+          }
+
           filteredData.forEach((p) => {
             const isFail = p.danh_gia_tu_dong !== 'Đạt';
             const errs = geterrs(p);
-            // 1. CHỈ TẠO 1 MARKER DUY NHẤT
-            const marker = L.circleMarker([p.lat, p.lng], {
-              radius: 8,
-              fillColor: isFail ? '#f26522' : '#008b99',
-              color: '#fff',
-              weight: 1,
-              fillOpacity: 0.8,
-            });
-            // 2. GÁN POPUP (Dùng chung cho cả 2 chế độ hiển thị)
-            marker.bindPopup(`
-      <div style="min-width: 200px">
-          <strong style="font-size:1.1rem">${p.csccn_name}</strong><br>
-          <hr style="margin: 5px 0">
-          <b>Ngày lấy mẫu:</b> ${p.sampling_date}<br>
-          <b>Kết quả:</b> <span style="color:${isFail ? 'red' : 'green'}"><b>${
-              p.danh_gia_tu_dong
-            }</b></span><br>
-          <b style="color:#f26522">Thông số không đạt:</b> ${
-            errs.join(', ') || 'Không có'
-          }
-      </div>
-    `);
-            // 3. SỰ KIỆN CLICK (Dùng chung)
-            marker.on('click', (e) => {
-              if (isFail) {
-                createBufferZone(e.latlng.lat, e.latlng.lng, 1.0, p.csccn_name);
-                updateRiskPanel(e.latlng.lat, e.latlng.lng, 1.0);
-                if (!map.hasLayer(riskLayer)) map.addLayer(riskLayer);
-              } else {
-                if (window.bufferLayer) bufferLayer.clearLayers();
-                const panel = document.getElementById('risk-analysis-panel');
-                if (panel) panel.style.display = 'none';
-              }
-              marker.openPopup();
-            });
-            // 🚀 QUAN TRỌNG: Thêm CÙNG 1 MARKER vào cả 2 lớp
-            markers.addLayer(marker); // Lớp Clusters
-            monitoringPointsLayer.addLayer(marker); // Lớp điểm riêng lẻ
-            if (isFail) heatPoints.push([p.lat, p.lng, 0.8]);
-            // 4. Đổ dữ liệu vào bảng
-            const row = document.createElement('tr');
-            row.innerHTML = `
-      <td>${p.sampling_date}</td>
-      <td>${p.csccn_name}</td>
-      <td style="color:${isFail ? 'red' : 'green'}"><b>${
-              p.danh_gia_tu_dong
-            }</b></td>
-      <td style="color:red">${errs.join(', ')}</td>
-    `;
-            row.onclick = () => {
-              map.flyTo([p.lat, p.lng], 15);
-              marker.openPopup();
-              // Kích hoạt phân tích ngay khi click dòng trong bảng
-              if (isFail) {
-                createBufferZone(p.lat, p.lng, 1.0, p.csccn_name);
-                updateRiskPanel(p.lat, p.lng, 1.0);
-              }
-            };
-            tbody.appendChild(row);
+
+            // --- BƯỚC 1: XỬ LÝ VẼ LÊN BẢN ĐỒ (CHỐNG LỖI LAT/LNG NULL) ---
+            let marker = null;
+            if (p.lat && p.lng && !isNaN(p.lat) && !isNaN(p.lng)) {
+              marker = L.circleMarker([p.lat, p.lng], {
+                radius: 8,
+                fillColor: isFail ? '#f26522' : '#008b99',
+                color: '#fff',
+                weight: 1,
+                fillOpacity: 0.8,
+              });
+
+              // Gán Popup (Đã dùng formatDateDisplay chuẩn)
+              marker.bindPopup(`
+        <div style="min-width: 200px">
+            <strong style="font-size:1.1rem">${p.csccn_name}</strong><br>
+            <hr style="margin: 5px 0">
+            <b>Ngày lấy mẫu:</b> ${formatDateDisplay(p.sampling_date)}<br>
+            <b>Kết quả:</b> <span style="color:${
+              isFail ? 'red' : 'green'
+            }"><b>${p.danh_gia_tu_dong}</b></span><br>
+            <b style="color:#f26522">Thông số không đạt:</b> ${
+              errs.join(', ') || 'Không có'
+            }
+        </div>
+      `);
+
+              // Sự kiện Click trên bản đồ
+              marker.on('click', (e) => {
+                if (isFail) {
+                  createBufferZone(
+                    e.latlng.lat,
+                    e.latlng.lng,
+                    1.0,
+                    p.csccn_name
+                  );
+                  updateRiskPanel(e.latlng.lat, e.latlng.lng, 1.0);
+                  if (!map.hasLayer(riskLayer)) map.addLayer(riskLayer);
+                } else {
+                  if (window.bufferLayer) bufferLayer.clearLayers();
+                  const panel = document.getElementById('risk-analysis-panel');
+                  if (panel) panel.style.display = 'none';
+                }
+                marker.openPopup();
+              });
+
+              // Thêm vào các lớp hiển thị
+              markers.addLayer(marker);
+              monitoringPointsLayer.addLayer(marker);
+              if (isFail) heatPoints.push([p.lat, p.lng, 0.8]);
+            }
+
+            // --- BƯỚC 2: ĐỔ DỮ LIỆU VÀO BẢNG (ĐỊNH DẠNG LẠI NGÀY) ---
+            if (tbody) {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+        <td style="white-space:nowrap">${formatDateDisplay(
+          p.sampling_date
+        )}</td>
+        <td>${p.csccn_name || 'N/A'}</td>
+        <td style="color:${isFail ? 'red' : 'green'}"><b>${
+                p.danh_gia_tu_dong
+              }</b></td>
+        <td style="color:red; font-size:0.9em">${errs.join(', ')}</td>
+      `;
+
+              // Sự kiện click dòng trong bảng để bay tới điểm đó
+              row.onclick = () => {
+                if (p.lat && p.lng) {
+                  map.flyTo([p.lat, p.lng], 15);
+                  if (marker) marker.openPopup();
+
+                  if (isFail) {
+                    createBufferZone(p.lat, p.lng, 1.0, p.csccn_name);
+                    updateRiskPanel(p.lat, p.lng, 1.0);
+                  }
+                } else {
+                  showToast(
+                    'warning',
+                    'Mẫu này không có tọa độ để hiển thị trên bản đồ.'
+                  );
+                }
+              };
+              tbody.appendChild(row);
+            }
           });
-          heatmapLayer.setLatLngs(heatPoints);
+
+          // Cập nhật lớp nhiệt
+          if (heatmapLayer) heatmapLayer.setLatLngs(heatPoints);
         }
         // FIX LỖI SAI BIẾN Ở ĐÂY
         function geterrs(p) {
@@ -4009,45 +4160,76 @@
         }
 
         function setupSlider() {
-          console.log('Tổng số dòng trong allData:', allData.length);
-          const dates = allData.map((d) => new Date(d.sampling_date).getTime());
-          const minDate = Math.min(...dates);
-
-          // Thay vì lấy Max trong dữ liệu, lấy thẳng ngày hôm nay
-          const maxDate = new Date().getTime();
-
           const slider = document.getElementById('time-slider');
+          const startInput = document.getElementById('input-start');
+          const endInput = document.getElementById('input-end');
+          const label = document.getElementById('date-label');
+
+          if (!allData.length || !slider) return;
+
+          // 1. Tính toán dải dữ liệu
+          const dates = allData.map((d) => d.sampling_date.getTime());
+          const minDate = Math.min(...dates);
+          const now = new Date().getTime();
+          const maxDateInData = Math.max(...dates);
+          const finalMax = maxDateInData > now ? maxDateInData : now;
+
+          // Mốc mặc định: 30 ngày gần nhất
+          const oneMonthInMs = 30 * 24 * 60 * 60 * 1000;
+          let defaultStart = now - oneMonthInMs;
+          if (defaultStart < minDate) defaultStart = minDate;
+
+          // 2. Khởi tạo Slider
           if (slider.noUiSlider) slider.noUiSlider.destroy();
 
-          const oneMonthInMs = 30 * 24 * 60 * 60 * 1000;
-
-          // Mặc định chọn từ 1 tháng trước cho đến Hôm nay
-          let defaultStart = maxDate - oneMonthInMs;
-          if (defaultStart < minDate) defaultStart = minDate;
           noUiSlider.create(slider, {
-            start: [defaultStart, maxDate], // Mốc bắt đầu là 1 tháng trước, kết thúc là ngày mới nhất
+            start: [defaultStart, finalMax],
             connect: true,
             range: {
               min: minDate,
-              max: maxDate,
+              max: finalMax,
             },
-            step: 24 * 60 * 60 * 1000, // Nhảy theo từng ngày
+            step: 24 * 60 * 60 * 1000, // Bước nhảy 1 ngày
           });
-          // CẬP NHẬT: Khi slider chạy, điền ngày vào nhãn và lọc dữ liệu
-          slider.noUiSlider.on('update', function (values) {
-            const startStr = new Date(parseInt(values[0])).toLocaleDateString(
+
+          // Hàm phụ: Convert Timestamp sang YYYY-MM-DD cho ô Input
+          const toISO = (ts) => new Date(ts).toISOString().split('T')[0];
+
+          // --- A. ĐỒNG BỘ: SLIDER -> INPUT ---
+          slider.noUiSlider.on('update', function (values, handle) {
+            const s = parseInt(values[0]);
+            const e = parseInt(values[1]);
+
+            // Cập nhật nhãn Text (dd/mm/yyyy)
+            label.innerText = `${new Date(s).toLocaleDateString(
               'vi-VN'
-            );
-            const endStr = new Date(parseInt(values[1])).toLocaleDateString(
-              'vi-VN'
-            );
-            // Cập nhật nhãn ở Sidebar
-            document.getElementById(
-              'date-label'
-            ).innerText = `${startStr} - ${endStr}`;
-            // Gọi hàm lọc để bản đồ và dashboard cập nhật theo
+            )} - ${new Date(e).toLocaleDateString('vi-VN')}`;
+
+            // Cập nhật giá trị ô Input (yyyy-mm-dd)
+            if (handle === 0) startInput.value = toISO(s);
+            if (handle === 1) endInput.value = toISO(e);
+
+            // Kích hoạt lọc dữ liệu
             applyFilters();
           });
+
+          // --- B. ĐỒNG BỘ: INPUT -> SLIDER ---
+          const handleInputChange = () => {
+            const valStart = new Date(startInput.value).getTime();
+            const valEnd = new Date(endInput.value).getTime();
+
+            // Kiểm tra tính hợp lệ trước khi set lại Slider
+            if (valStart && valEnd && valStart <= valEnd) {
+              // Chặn việc set vượt quá giới hạn của Slider
+              const s = Math.max(minDate, Math.min(valStart, finalMax));
+              const e = Math.max(minDate, Math.min(valEnd, finalMax));
+
+              slider.noUiSlider.set([s, e]);
+            }
+          };
+
+          startInput.addEventListener('change', handleInputChange);
+          endInput.addEventListener('change', handleInputChange);
         }
 
         function toggleTable() {
@@ -4584,7 +4766,6 @@
         }
         //TABLE ANALYTICS
         async function loadAnalyticsData() {
-          // 1. Lấy nguồn thời gian từ Time Slider
           const sourceElement = document.getElementById('date-label');
           let startDate = '',
             endDate = '';
@@ -4592,37 +4773,59 @@
           if (sourceElement) {
             const dates = sourceElement.innerText.split(' - ');
             if (dates.length === 2) {
-              startDate = formatDateForQuery(dates[0]); // Chuyển về YYYY-MM-DD để query
+              startDate = formatDateForQuery(dates[0]);
               endDate = formatDateForQuery(dates[1]);
             }
           }
 
-          // 2. HIỂN THỊ GIAI ĐOẠN (Đúng theo mẫu bạn muốn)
           const displayElement = document.getElementById('table-period');
           if (displayElement) {
-            const startDisplay = formatDateDisplay(startDate || '2026-01-01');
-            const endDisplay = formatDateDisplay(endDate || '2026-03-31');
-            displayElement.innerHTML = `<i class="far fa-calendar-alt me-2"></i> Giai đoạn: <b>${startDisplay}</b> đến <b>${endDisplay}</b>`;
+            displayElement.innerHTML = `<i class="far fa-calendar-alt me-2"></i> Giai đoạn: <b>${formatDateDisplay(
+              startDate
+            )}</b> đến <b>${formatDateDisplay(endDate)}</b>`;
           }
 
-          showToast('info', 'Đang phân tích dữ liệu...');
+          showToast('info', 'Đang phân tích kho dữ liệu...');
 
           try {
-            const [resReports, resUnits, resThresholds] = await Promise.all([
-              supabaseClient
-                .from('water_reports')
-                .select('*')
-                .filter('sampling_date', 'gte', startDate || '2026-01-01')
-                .filter('sampling_date', 'lte', endDate || '2026-12-31'),
+            // 1. Kéo dữ liệu phụ (Units và Thresholds thường ít, không lo limit)
+            const [resUnits, resThresholds] = await Promise.all([
               supabaseClient
                 .from('units')
-                .select('maphuong, csccn_name,capacity')
+                .select('maphuong, csccn_name, capacity')
                 .eq('mode', 'noikiem'),
               supabaseClient
                 .from('threshold_configs')
                 .select('param_code, limit_min, limit_max'),
             ]);
 
+            // 2. CHIẾN THUẬT KÉO BÁO CÁO (VƯỢT RÀO 1000 DÒNG)
+            let allReports = [];
+            let from = 0;
+            let to = 999;
+            let hasMore = true;
+
+            while (hasMore) {
+              const { data: batch, error } = await supabaseClient
+                .from('water_reports')
+                .select('*')
+                .filter('sampling_date', 'gte', startDate || '2024-01-01') // Lấy từ 2024 cho chắc sếp nhé
+                .filter('sampling_date', 'lte', endDate || '2026-12-31')
+                .range(from, to);
+
+              if (error) throw error;
+
+              allReports = allReports.concat(batch);
+
+              if (batch.length < 1000) {
+                hasMore = false;
+              } else {
+                from += 1000;
+                to += 1000;
+              }
+            }
+
+            // 3. XỬ LÝ MAP DỮ LIỆU
             const thresholdMap = new Map(
               resThresholds.data.map((t) => [t.param_code, t])
             );
@@ -4630,29 +4833,60 @@
               resUnits.data.map((u) => [u.maphuong, u.csccn_name])
             );
 
-            // Gọi hàm render tiến độ
-            renderComplianceTable(resReports.data, resUnits.data);
-            // Render dữ liệu vào các bảng
-            renderSummaryTable(resReports.data, unitMap, thresholdMap);
-            renderDetailTable(resReports.data, thresholdMap);
-            renderAlertTable(resReports.data, unitMap, thresholdMap);
+            // 4. RENDER CÁC BẢNG PHÂN TÍCH VỚI ĐẦY ĐỦ DỮ LIỆU
+            renderComplianceTable(allReports, resUnits.data);
+            renderSummaryTable(allReports, unitMap, thresholdMap);
+            renderDetailTable(allReports, thresholdMap);
+            renderAlertTable(allReports, unitMap, thresholdMap);
 
             showToast(
               'success',
-              `Cập nhật thành công ${resReports.data.length} mẫu.`
+              `Phân tích hoàn tất trên ${allReports.length} mẫu dữ liệu.`
             );
           } catch (err) {
-            console.error('Lỗi:', err);
-            showToast('error', 'Không thể nạp dữ liệu.');
+            console.error('Lỗi phân tích:', err);
+            showToast('error', 'Lỗi dữ liệu: ' + err.message);
           }
         }
 
         // Hàm hỗ trợ định dạng dd-mm-yyyy để hiển thị
-        function formatDateDisplay(dateStr) {
-          if (!dateStr) return '';
-          const parts = dateStr.split('-');
-          if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-          return dateStr;
+        function formatDateDisplay(dateInput) {
+          if (!dateInput) return '';
+
+          // Nếu là đối tượng Date (do mình đã convert ở hàm init)
+          if (dateInput instanceof Date) {
+            if (isNaN(dateInput.getTime())) return '';
+            const d = String(dateInput.getDate()).padStart(2, '0');
+            const m = String(dateInput.getMonth() + 1).padStart(2, '0');
+            const y = dateInput.getFullYear();
+            return `${d}-${m}-${y}`;
+          }
+
+          // Nếu là chuỗi (String) dạng YYYY-MM-DD
+          if (typeof dateInput === 'string' && dateInput.includes('-')) {
+            const parts = dateInput.split('T')[0].split('-'); // Cắt bỏ phần giờ nếu có
+            if (parts.length === 3)
+              return `${parts[2]}-${parts[1]}-${parts[0]}`;
+          }
+
+          return dateInput;
+        }
+        function handleResize() {
+          const mapContainer = document.getElementById('map');
+          const tableContainer = document.getElementById('table-area');
+          const mainContainer = document.getElementById('main');
+
+          if (map) {
+            map.invalidateSize(); // Quan trọng: Yêu cầu Leaflet tính toán lại khung nhìn
+          }
+
+          if (mainContainer && mapContainer && tableContainer) {
+            const containerHeight = mainContainer.offsetHeight;
+            const mapHeight = mapContainer.offsetHeight;
+            // Tính toán lại chiều cao bảng để không bị tràn màn hình
+            tableContainer.style.maxHeight =
+              containerHeight - mapHeight - 20 + 'px';
+          }
         }
         /**
          * Tìm và zoom đến điểm trên bản đồ dựa vào ID mẫu tin
@@ -6441,8 +6675,8 @@
       </div>
       <div id="ai-chat-wrapper">
         <button id="ai-chat-trigger" onclick="toggleAIChat()">
-        <i class="fa-solid fa-a"></i>
-          <span>Sentinel WebGIS</span>
+          <i class="fa-solid fa-a"></i>
+          <span>Chatbot</span>
         </button>
 
         <div id="ai-chat-window">
@@ -6452,7 +6686,7 @@
                 <i class="fa-solid fa-shield-virus"></i>
               </div>
               <div>
-                <div class="ai-name">AI Assistant for HCDC</div>
+                <div class="ai-name">Assistant for HCDC WebGIS</div>
                 <div class="ai-status">Online now</div>
               </div>
             </div>
@@ -6461,7 +6695,7 @@
 
           <div id="ai-chat-body">
             <div class="chat-msg bot">
-              Chào sếp! Em là trợ lý Sentinel WebGIS. Sếp cần em phân tích gì không ạ?
+              Chào sếp! Em là trợ lý HCDC WebGIS. Sếp cần em hỗ trợ gì ạ?
             </div>
           </div>
 
@@ -6469,7 +6703,7 @@
             <input
               type="text"
               id="ai-chat-input"
-              placeholder="Hỏi về rủi ro, Thông tư 52..."
+              placeholder="Hỏi về chất lượng nước..."
               onkeypress="handleChatKey(event)"
             />
             <button onclick="sendChatToAI()">
