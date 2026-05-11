@@ -6321,19 +6321,34 @@
             }).addTo(map);
 
             // --- TẦNG 2: VẼ MARKER (CƠ SỞ) ---
-            // --- TẦNG 2: VẼ MARKER (CƠ SỞ) ---
+            // Hàm chuẩn hóa tên tại chỗ để đảm bảo khớp tuyệt đối
+            const sanitize = (name) =>
+              (name || '')
+                .toString()
+                .toLowerCase()
+                .replace(/^(phường|phuong|quận|quan|p\.|q\.)\s+/g, '')
+                .trim();
+
+            const sanitizedAI = cleanNames.map((n) => sanitize(n));
+            console.log('🤖 Lõi danh sách AI dự báo:', sanitizedAI);
+
             if (locations) {
               locations.forEach((loc) => {
-                // 1. Kiểm tra tên rỗng
-                const locName = (loc.name || '').toLowerCase().trim();
+                // So khớp dựa trên cả mã phường và tên cơ sở đã chuẩn hóa
+                const locWard = sanitize(loc.maphuong);
+                const locName = sanitize(loc.name);
 
-                // 2. KIỂM TRA TỌA ĐỘ (Cực kỳ quan trọng để tránh lỗi getLatLng)
+                // Nếu cơ sở thuộc phường AI báo HOẶC tên cơ sở khớp trực tiếp với AI báo
                 if (
-                  locName &&
-                  cleanNames.includes(locName) &&
+                  (sanitizedAI.includes(locWard) ||
+                    sanitizedAI.includes(locName)) &&
                   loc.lat &&
                   loc.lng
                 ) {
+                  console.log(
+                    `✅ Khớp cơ sở rủi ro: ${loc.name} (${loc.lat}, ${loc.lng})`
+                  );
+
                   const marker = L.marker([loc.lat, loc.lng], {
                     icon: L.divIcon({
                       className: 'risk-marker-pulse',
@@ -6341,59 +6356,73 @@
                       iconSize: [30, 30],
                     }),
                   }).bindPopup(`
-            <div style="text-align:justify;">
-                <b style="color:#e74c3c;">⚠️ VỊ TRÍ RỦI RO</b><br>
-                <b>${loc.name}</b><br>
-                <small>Tọa độ: ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(
-                    4
-                  )}</small><br>
-                <small>Loại hình: ${loc.type}</small>
-            </div>
-          `);
+                            <div style="text-align:justify;">
+                                <b style="color:#e74c3c;">⚠️ VỊ TRÍ RỦI RO</b><br>
+                                <b>${loc.name}</b><br>
+                                <small>Địa bàn: ${
+                                  loc.maphuong || 'Đang cập nhật'
+                                }</small><br>
+                                <small>Loại hình: ${loc.type}</small>
+                            </div>
+                        `);
                   marker.addTo(alertPointLayer);
                 }
               });
             }
+
             alertPointLayer.addTo(map);
 
             // --- CÁCH TÍNH BOUNDS AN TOÀN TUYỆT ĐỐI ---
-            let bounds = L.latLngBounds(); // Khởi tạo vùng chứa trống
+            let bounds = L.latLngBounds();
             let hasValidData = false;
 
-            // Nếu có Phường, mở rộng vùng chứa theo Phường
+            // 1. KIỂM TRA LỚP PHƯỜNG (Tầng vùng)
             if (alertZoneLayer && alertZoneLayer.getLayers().length > 0) {
               bounds.extend(alertZoneLayer.getBounds());
               hasValidData = true;
             }
 
-            // Nếu có Marker, mở rộng vùng chứa theo Marker
+            // 2. KIỂM TRA LỚP MARKER (Tầng điểm)
             if (alertPointLayer && alertPointLayer.getLayers().length > 0) {
               alertPointLayer.eachLayer((layer) => {
-                bounds.extend(layer.getLatLng());
+                if (layer.getLatLng) bounds.extend(layer.getLatLng());
               });
               hasValidData = true;
             }
 
-            // Chỉ Zoom khi thực sự có dữ liệu hợp lệ
+            // --- XỬ LÝ KẾT QUẢ CUỐI CÙNG ---
             if (hasValidData) {
+              // Zoom bản đồ một cách mượt mà
               map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
 
+              // Cập nhật giao diện nút bấm
               btn.innerHTML =
                 '<i class="fa-solid fa-circle-stop"></i> TẮT CẢNH BÁO';
               btn.classList.add('active-alert');
               isAlertActive = true;
 
-              showToast(
-                'warning',
-                `Xác định rủi ro tại ${matchedWardNames.size} phường và ${
-                  alertPointLayer.getLayers().length
-                } cơ sở.`
-              );
+              // Thông báo trạng thái thông minh cho người dùng
+              const wardCount = matchedWardNames.size;
+              const pointCount = alertPointLayer.getLayers().length;
+
+              if (pointCount > 0) {
+                showToast(
+                  'warning',
+                  `Xác định rủi ro tại ${wardCount} phường và ${pointCount} điểm cơ sở.`
+                );
+              } else {
+                showToast(
+                  'info',
+                  `Phát hiện rủi ro tại ${wardCount} phường (Chưa có dữ liệu điểm cụ thể).`
+                );
+              }
             } else {
+              // Chỉ báo lỗi khi AI báo tên hoàn toàn "lạ" không có trên bản đồ
               showToast(
                 'error',
-                'Dữ liệu phân tích không khớp với bất kỳ tọa độ nào trên bản đồ.'
+                'Dữ liệu AI không khớp với ranh giới hành chính hiện tại.'
               );
+              console.warn('⚠️ Không tìm thấy khớp cho:', sanitizedAI);
             }
           } catch (err) {
             console.error('Lỗi khi bật lớp cảnh báo:', err);
