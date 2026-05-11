@@ -1808,15 +1808,56 @@
         max-width: 86%;
         line-height: 1.4;
       }
+
+      /* Nút gợi ý tối giản: Chỉ có chữ */
+      .btn-outline-info.rounded-pill {
+        font-size: 0.9rem;
+        border: none; /* Bỏ khung */
+        background: transparent; /* Bỏ nền */
+        color: #17a2b8; /* Màu chữ mặc định */
+        padding: 5px 10px;
+        transition: all 0.2s ease-in-out;
+        font-weight: normal;
+        text-align: justify;
+        cursor: pointer;
+        display: inline-block;
+      }
+
+      /* Hiệu ứng khi di chuột vào hoặc khi nhấn */
+      .btn-outline-info.rounded-pill:hover,
+      .btn-outline-info.rounded-pill:active,
+      .btn-outline-info.rounded-pill:focus {
+        color: #0056b3; /* Đổi màu đậm hơn một chút */
+        font-weight: bold; /* Đậm chữ lên theo ý sếp */
+        background: transparent; /* Đảm bảo không hiện nền */
+        transform: scale(1.05); /* Phóng nhẹ một xíu cho sinh động */
+        outline: none; /* Bỏ viền mặc định của trình duyệt */
+        box-shadow: none; /* Đảm bảo không hiện bóng */
+      }
+
+      /* Khoảng cách giữa các nút */
+      .suggestion-box {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 10px;
+        padding: 5px 0;
+      }
+
       .chat-msg.bot {
-        background: white;
-        color: #333;
+        background-color: #f8f9fa;
+        border-radius: 15px 15px 15px 0;
+        padding: 12px;
+        margin-bottom: 15px;
+        border: 1px solid #e9ecef;
         align-self: flex-start;
+        text-align: justify;
         border-bottom-left-radius: 2px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         word-wrap: break-word; /* Đảm bảo chữ không bị tràn ra ngoài */
         white-space: pre-line; /* Giữ định dạng xuống dòng của AI */
       }
+
       .chat-msg.user {
         background: #008b99;
         color: white;
@@ -6636,73 +6677,74 @@
           if (e.key === 'Enter') sendChatToAI();
         }
 
-        async function sendChatToAI() {
+        async function sendChatToAI(suggestedQuestion = null) {
           const input = document.getElementById('ai-chat-input');
           const body = document.getElementById('ai-chat-body');
-          const question = input.value.trim();
+
+          // 1. Lấy câu hỏi: Nếu bấm nút gợi ý thì lấy từ tham số, không thì lấy từ ô nhập
+          const question = suggestedQuestion || input.value.trim();
           if (!question) return;
 
+          // 2. Hiển thị câu hỏi của sếp lên khung chat
           body.innerHTML += `<div class="chat-msg user">${question}</div>`;
-          input.value = '';
+          if (!suggestedQuestion) input.value = ''; // Xóa ô nhập nếu gõ tay
           body.scrollTop = body.scrollHeight;
 
+          // 3. Hiển thị trạng thái chờ
           const typingId = 'typing-' + Date.now();
-          body.innerHTML += `<div class="chat-msg bot" id="${typingId}"><span class="spinner-border spinner-border-sm"></span> Đang phân tích cơ sở dữ liệu...</div>`;
+          body.innerHTML += `<div class="chat-msg bot" id="${typingId}"><span class="spinner-border spinner-border-sm"></span> loading...</div>`;
           body.scrollTop = body.scrollHeight;
 
           try {
-            let smartSummary = 'Dữ liệu hiện tại chưa được đồng bộ.';
-
+            // --- Lấy dữ liệu nhanh từ Front-end để AI có thêm ngữ cảnh ---
+            let smartSummary = 'Dữ liệu Dashboard chưa sẵn sàng.';
             if (window.allData && allData.length > 0) {
               const total = allData.length;
               const fails = allData.filter(
                 (d) => d.danh_gia_tu_dong === 'Không đạt'
               );
-
-              // Sử dụng chính xác tên cột: ward_commune và csccn_name
-              const criticalPoints = [
-                ...new Set(
-                  fails.map((d) => `${d.ward_commune} (${d.csccn_name})`)
-                ),
-              ].slice(0, 10);
-
-              smartSummary = `
-        - Báo cáo chất lượng nước toàn hệ thống.
-        - Tổng số mẫu ghi nhận: ${total.toLocaleString()} mẫu.
-        - Tình trạng: ${fails.length} mẫu KHÔNG ĐẠT (${(
-                (fails.length / total) *
-                100
-              ).toFixed(2)}%).
-        - Các khu vực/cơ sở trọng điểm cần giám sát: ${
-          criticalPoints.length > 0
-            ? criticalPoints.join(', ')
-            : 'Tất cả đều đạt Quy chuẩn'
-        }.
-        - Metadata: Dữ liệu được trích xuất từ view_report_results vào lúc ${new Date().toLocaleTimeString(
-          'vi-VN'
-        )}.
-      `;
+              smartSummary = `Dashboard đang hiển thị ${total} mẫu, có ${fails.length} mẫu lỗi.`;
             }
 
+            // 4. Gọi Edge Function
             const { data, error } = await supabaseClient.functions.invoke(
               'hcdc-chatbot',
-              {
-                body: { prompt: question, dataSummary: smartSummary },
-              }
+              { body: { prompt: question, dataSummary: smartSummary } }
             );
 
             const botArea = document.getElementById(typingId);
             if (error) throw error;
 
-            if (data && data.answer) {
-              // Hiển thị nội dung với định dạng chuyên nghiệp
+            if (data) {
+              // 5. Hiển thị câu trả lời (Answer)
+              // Chuyển đổi Markdown cơ bản sang HTML
               botArea.innerHTML = data.answer
                 .replace(/\n/g, '<br>')
-                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/### (.*?)<br>/g, '<h5>$1</h5>');
+
+              // 6. HIỂN THỊ CÁC CÂU HỎI GỢI Ý (Suggestions)
+              if (data.suggestions && data.suggestions.length > 0) {
+                const suggestionBox = document.createElement('div');
+                suggestionBox.className =
+                  'suggestion-box mt-2 d-flex flex-wrap gap-2';
+
+                data.suggestions.forEach((text) => {
+                  const btn = document.createElement('button');
+                  btn.className =
+                    'btn btn-outline-info btn-sm rounded-pill py-1 px-3';
+                  btn.innerText = text;
+                  // Khi bấm vào gợi ý, gọi lại chính hàm này
+                  btn.onclick = () => sendChatToAI(text);
+                  suggestionBox.appendChild(btn);
+                });
+
+                botArea.appendChild(suggestionBox);
+              }
             }
           } catch (err) {
             document.getElementById(typingId).innerText =
-              'Sự cố kết nối: ' + err.message;
+              'Sự cố: ' + err.message;
           }
           body.scrollTop = body.scrollHeight;
         }
@@ -7334,8 +7376,7 @@
           </div>
 
           <div id="ai-chat-body">
-            <div class="chat-msg bot">
-              Chào sếp! Em là trợ lý HCDC WebGIS. Sếp cần em hỗ trợ gì ạ?
+            <div class="chat-msg bot">Chào sếp! Em là trợ lý HCDC WebGIS. Sếp cần em hỗ trợ gì ạ?
             </div>
           </div>
 
@@ -7343,7 +7384,7 @@
             <input
               type="text"
               id="ai-chat-input"
-              placeholder="Hỏi về rủi ro, Thông tư 52..."
+              placeholder="Hỏi về chất lượng nước theo thời gian..."
               onkeypress="handleChatKey(event)"
             />
             <button onclick="sendChatToAI()">
