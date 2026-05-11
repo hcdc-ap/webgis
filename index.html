@@ -399,7 +399,7 @@
 
       .close-btn {
         position: absolute;
-        top: 20px;
+        top: 13px;
         right: 20px;
         font-size: 24px;
         cursor: pointer;
@@ -689,7 +689,43 @@
         max-height: 200px;
         overflow-y: auto; /* Thêm cuộn nếu nội dung quá dài */
       }
+      /* Container cho mỗi section của AI */
+      .ai-analysis-section {
+        margin-bottom: 1.5rem; /* Tạo khoảng cách giữa mục 1, 2, 3 */
+        padding-bottom: 0.5rem;
+      }
 
+      /* Tiêu đề mục (1., 2...) */
+      .ai-analysis-title {
+        font-weight: bold;
+        color: #00796b; /* Màu xanh HCDC */
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+        display: block;
+        border-bottom: 1px solid #e0f2f1;
+      }
+
+      /* Nội dung văn bản */
+      .ai-analysis-text {
+        line-height: 1.6;
+        color: #34495e;
+        margin-bottom: 6px;
+        display: block;
+      }
+
+      /* Gạch đầu dòng con */
+      .ai-analysis-item {
+        display: block;
+        padding-left: 1.2rem;
+        position: relative;
+        margin-bottom: 4px;
+      }
+      .ai-analysis-item::before {
+        content: '•';
+        position: absolute;
+        left: 0.3rem;
+        color: #009688;
+      }
       .popup-divider {
         border: 0;
         border-top: 1px solid #eee;
@@ -1191,7 +1227,7 @@
         align-items: center;
         cursor: pointer;
         z-index: 9999;
-        background: linear-gradient(135deg, #008b99, #9b72cb, #d96570);
+        background: linear-gradient(135deg, #008b99, #9b72cb, #f26522);
         box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2),
           0 0 15px 3px rgba(128, 192, 255, 0.4);
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1481,6 +1517,7 @@
         font-weight: normal !important;
         font-size: 0.88rem !important;
         color: #333 !important;
+        text-align: justify !important;
         line-height: 1.6 !important;
       }
 
@@ -1606,7 +1643,7 @@
         margin-top: 15px;
         font-weight: bold;
         font-size: 0.85rem;
-        color: #d96570;
+        color: #f26522;
         display: flex;
         align-items: center;
         gap: 5px;
@@ -6045,80 +6082,86 @@
         function parseAIAnalysis(text) {
           if (!text || typeof text !== 'string') return [];
 
-          // 1. Dọn dẹp HTML và chuẩn hóa xuống dòng
+          // 1. Dọn dẹp và chuẩn hóa: Thêm dấu xuống hàng trước các số thứ tự để dễ tách
+          // Nó sẽ tìm các cụm như " 1. ", " 2. " và chèn \n vào trước chúng
           let cleanText = text
-            .replace(/<\/?[^>]+>/g, '')
-            .replace(/\r\n/g, '\n');
+            .replace(/\r\n/g, '\n')
+            .replace(/(\s)(\d+\.\s)/g, '\n$2')
+            .trim();
 
-          // 2. Tách Section bằng Regex linh hoạt (chấp nhận cả 1., **1.**, hoặc [1.])
+          // 2. Tách Section: Tách dựa trên số thứ tự hoặc tiêu đề trong ngoặc []
           const rawSections = cleanText.split(
-            /(?=\n\d+\.|\n\*\*\d+\.|\n\[\d+|^ \d+\.|^\*\*\d+\.|^\[\d+)/g
+            /(?=\n\d+\.|\n\[.*?\]|^ \d+\.|^\d+\.|^\[.*?\])/g
           );
 
           const sections = [];
 
           for (let sec of rawSections) {
-            if (!sec.trim()) continue;
+            const trimmedSec = sec.trim();
+            if (!trimmedSec) continue;
 
-            const lines = sec.trim().split('\n');
+            const lines = trimmedSec.split('\n');
             let rawTitle = lines[0].trim();
             let rawBody = lines.slice(1).join('\n').trim();
 
-            // --- "GIÁP" BẢO VỆ TIÊU ĐỀ ---
-            // Nếu dòng đầu không có số thứ tự hoặc quá dài (>100 ký tự), tống nó vào Body
-            if (!/^(\*\*|\[)?\d+/.test(rawTitle) || rawTitle.length > 100) {
+            // --- LOGIC XỬ LÝ TIÊU ĐỀ (BỎ "THÔNG TIN BỔ SUNG") ---
+            let finalTitle = '';
+            // Nếu là số thứ tự hoặc nằm trong ngoặc [] thì lấy làm tiêu đề
+            if (/^(\d+\.|\[.*?\])/.test(rawTitle)) {
+              finalTitle = rawTitle;
+            } else {
+              // Nếu không phải, đẩy hết vào body
               rawBody = rawTitle + '\n' + rawBody;
-              rawTitle = 'Thông tin bổ sung';
             }
 
-            // Làm sạch tiêu đề (Xóa **, [], dấu chấm thừa)
-            const cleanTitle = rawTitle.replace(/[\*\\[\]]/g, '').trim();
-
             const currentSection = {
-              title: cleanTitle,
+              // Làm sạch tiêu đề: Giữ nguyên ngoặc [] nhưng bỏ dấu sao **
+              title: finalTitle.replace(/\*\*/g, '').trim(),
               content: [],
             };
 
-            // 3. XỬ LÝ NỘI DUNG (Paragraph vs Item)
+            // 3. XỬ LÝ NỘI DUNG CHI TIẾT
             const bodyLines = rawBody
               .split('\n')
               .filter((l) => l.trim().length > 0);
 
             for (let line of bodyLines) {
-              let type = 'paragraph';
               let processedText = line.trim();
 
-              // Nhận diện gạch đầu dòng (Sử dụng cấu trúc cũ của sếp)
-              if (
-                /^[•\-+*→]/.test(processedText) ||
-                /^\d+\s*[a-z]\)/i.test(processedText)
-              ) {
-                type = 'item';
-              }
+              // ĐẬM CHỮ TRONG NGOẶC [ ] - Đúng ý sếp
+              processedText = processedText.replace(
+                /\[(.*?)\]/g,
+                '<b>[$1]</b>'
+              );
 
-              // --- "VŨ KHÍ" FORMATTING (Markdown + Highlights) ---
+              // Đậm Markdown ** **
+              processedText = processedText.replace(
+                /\*\*(.*?)\*\*/g,
+                '<b>$1</b>'
+              );
+
+              // Highlight xu hướng và đơn vị
               processedText = processedText
-                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Chuyển ** thành <b>
                 .replace(
-                  /(^|\s)(Tăng)(?=\s|$|[.,;:\-_])/g,
-                  '$1<span class="trend-highlight trend-increase">$2</span>'
+                  /(Tăng)/g,
+                  '<span class="trend-highlight trend-increase">$1</span>'
                 )
                 .replace(
-                  /(^|\s)(Giảm)(?=\s|$|[.,;:\-_])/g,
-                  '$1<span class="trend-highlight trend-decrease">$2</span>'
+                  /(Giảm)/g,
+                  '<span class="trend-highlight trend-decrease">$1</span>'
                 )
                 .replace(
-                  /(^|\s)(Ổn định)(?=\s|$|[.,;:\-_])/g,
-                  '$1<span class="trend-highlight trend-stable">$2</span>'
+                  /(Ổn định)/g,
+                  '<span class="trend-highlight trend-stable">$1</span>'
                 )
                 .replace(
-                  /(\d+\.?\d*[mg/LNTU%])/g,
-                  '<span style="font-weight:bold;">$1</span>'
-                ); // Đậm đơn vị
+                  /(\d+[\.,]?\d*\s?(mg\/L|NTU|%|mẫu|m|°C))/gi,
+                  '<strong>$1</strong>'
+                );
 
               currentSection.content.push({
-                type: type,
-                text: processedText,
+                type: /^[•\-+*→]/.test(processedText) ? 'item' : 'paragraph',
+                text: processedText.replace(/^[•\-+*→]\s*/, ''),
               });
             }
 
@@ -6126,7 +6169,6 @@
               sections.push(currentSection);
             }
           }
-
           return sections;
         }
         async function loadAIInsights() {
@@ -6135,113 +6177,70 @@
               .from('ai_daily_insights')
               .select('*')
               .order('prediction_date', { ascending: false })
-              .limit(3);
-
-            if (error || !data || data.length === 0) {
-              document.getElementById(
-                'ai-content'
-              ).innerHTML = `<div class="ai-report-item">
-          <div class="ai-text" style="color:#aaa; text-align:center; padding:20px;">
-            <i class="fa-solid fa-info-circle"></i> Không có dữ liệu phân tích AI
-          </div>
-        </div>`;
-              return;
-            }
-
-            // CẬP NHẬT RISK LEVEL CHO FAB
-            const fab = document.querySelector('.ai-fab');
-            const latestRisk = data[0].risk_level;
-
-            if (fab) {
-              fab.classList.remove('risk-low', 'risk-medium', 'risk-high');
-              if (latestRisk === 'Thấp') fab.classList.add('risk-low');
-              else if (latestRisk === 'Trung bình')
-                fab.classList.add('risk-medium');
-              else if (latestRisk === 'Cao') fab.classList.add('risk-high');
-            }
+              .limit(1);
 
             const container = document.getElementById('ai-content');
-            if (!container) return;
+            if (error || !data || data.length === 0) {
+              if (container)
+                container.innerHTML =
+                  '<div class="ai-text" style="text-align:center; color:#999;">Chưa có nhận định hôm nay</div>';
+              return;
+            }
 
             const item = data[0];
             const sections = parseAIAnalysis(item.analysis_text);
 
-            // HIỂN THỊ RISK LEVEL VỚI BADGE MÀU
-            const riskBadgeClass =
-              latestRisk === 'Cao'
-                ? 'high'
-                : latestRisk === 'Trung bình'
-                ? 'medium'
-                : 'low';
-            const riskBadgeHtml = `<span class="risk-badge ${riskBadgeClass}">${latestRisk}</span>`;
-
+            // Khởi tạo HTML với phần header (Ngày, Thời tiết, Rủi ro)
             let html = `
-      <div class="ai-report-item">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <small>📅 Ngày ${item.prediction_date}</small>
-          <span>${riskBadgeHtml}</span>
+      <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px dashed #ddd;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+           <small style="color:#666;">📅 ${item.prediction_date}</small>
+           <span class="risk-badge ${
+             item.risk_level === 'Cao' ? 'high' : 'low'
+           }">${item.risk_level}</span>
         </div>
-        <div class="weather-tag">
-          <i class="fa-solid fa-cloud"></i> ${
-            item.weather_info?.desc || 'Không có'
-          } | ${item.weather_info?.temp || 'N/A'}°C
+        <div style="font-size: 0.85rem; color: #555; margin-top: 4px;">
+           <i class="fa-solid fa-sun"></i> ${
+             item.weather_info?.desc || 'N/A'
+           } | ${item.weather_info?.temp || 'N/A'}°C
         </div>
       </div>
     `;
 
-            // --- ĐOẠN CODE HIỂN THỊ ĐÃ SỬA LỖI .replace ---
-            for (const sec of sections) {
-              // 1. In tiêu đề Section
+            // Lặp qua từng Section để vẽ
+            sections.forEach((sec) => {
+              // Vẽ tiêu đề (Số thứ tự hoặc cụm trong ngoặc [])
               if (sec.title) {
-                html += `<div class="section-header" style="margin-top:15px; font-weight:bold; color: #1a73e8;">${sec.title}</div>`;
+                // Nếu tiêu đề là cụm trong ngoặc [], mình bôi đậm và cho màu xanh chuyên nghiệp
+                const isBracketTitle = /^\[.*?\]/.test(sec.title);
+                const titleStyle = isBracketTitle
+                  ? 'color:#00796b; font-weight:bold; margin-top:15px;'
+                  : 'text-align: justify; margin-top:12px;';
+                html += `<div style="${titleStyle} margin-bottom:8px;">${sec.title}</div>`;
               }
 
-              // 2. Vì sec.content giờ là một Mảng, mình phải lặp qua từng phần tử của nó
-              html += `<div class="ai-text" style="margin-bottom:10px;">`;
+              // Vẽ từng dòng nội dung - ÉP XUỐNG HÀNG BẰNG THẺ DIV
+              sec.content.forEach((line) => {
+                const isItem = line.type === 'item';
+                const style = `
+          display: block; 
+          margin-bottom: 8px; 
+          line-height: 1.6; 
+          text-align: justify;
+          ${isItem ? 'padding-left: 15px; position: relative;' : ''}
+        `;
 
-              sec.content.forEach((item) => {
-                // Vì text đã được "nấu chín" (format <b>, highlight) trong hàm parseAIAnalysis
-                // nên ở đây mình chỉ việc in ra thôi, cực kỳ nhẹ máy!
-                const marginStyle =
-                  item.type === 'item'
-                    ? 'margin-left:15px; margin-bottom:5px;'
-                    : 'margin-bottom:8px;';
-                const bullet = item.type === 'item' ? '• ' : '';
+                const bullet = isItem
+                  ? '<span style="position:absolute; left:0;">•</span>'
+                  : '';
 
-                html += `<div style="${marginStyle} line-height:1.5;">${bullet}${item.text}</div>`;
+                html += `<div style="${style}">${bullet}${line.text}</div>`;
               });
-
-              html += `</div>`;
-            }
+            });
 
             container.innerHTML = html;
-
-            // CẬP NHẬT ZONE TAGS
-            const zoneContainer = document.getElementById('zone-tags');
-            if (zoneContainer) {
-              if (item.affected_wards && Array.isArray(item.affected_wards)) {
-                zoneContainer.innerHTML = item.affected_wards
-                  .map((w) => `<span class="zone-badge">${w.trim()}</span>`)
-                  .join('');
-              } else if (typeof item.affected_wards === 'string') {
-                const wards = item.affected_wards
-                  .split(/[,\n]/)
-                  .map((w) => w.trim())
-                  .filter((w) => w);
-                zoneContainer.innerHTML = wards
-                  .map((w) => `<span class="zone-badge">${w}</span>`)
-                  .join('');
-              } else {
-                zoneContainer.innerHTML =
-                  '<span class="zone-badge">Không xác định</span>';
-              }
-            }
           } catch (err) {
-            console.error('Lỗi trong loadAIInsights:', err);
-            const container = document.getElementById('ai-content');
-            if (container) {
-              container.innerHTML = `<div class="ai-text" style="color:red;">Lỗi: ${err.message}</div>`;
-            }
+            console.error('Lỗi loadAIInsights:', err);
           }
         }
 
