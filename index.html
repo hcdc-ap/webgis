@@ -1169,7 +1169,7 @@
       }
 
       .collapse-content.show {
-        max-height: 200px;
+        max-height: 300px;
         padding: 10px;
       }
 
@@ -1938,6 +1938,115 @@
         border-color: #008b99;
         box-shadow: 0 0 0 2px rgba(0, 139, 153, 0.1);
       }
+      .hcdc-modal-overlay {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        background-color: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(3px);
+      }
+      .hcdc-modal-content {
+        background-color: #fff;
+        margin: 5% auto;
+        width: 600px;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+      }
+      .hcdc-modal-header {
+        background: #008b99;
+        color: #fff;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: bold;
+      }
+      .close-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .hcdc-modal-body {
+        padding: 20px;
+        color: #333;
+      }
+      .pv-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      .pv-card {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .pv-card-title {
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        border-left: 4px solid #007bff;
+        padding-left: 8px;
+        color: #f26522;
+      }
+      .pv-row-grid {
+        display: grid;
+        grid-template-columns: 1 white 1;
+        gap: 15px;
+      }
+      .pv-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        font-size: 13px;
+      }
+      .pv-error-box {
+        margin-top: 10px;
+        padding: 5px;
+        background: #fff;
+        border: 1px dashed #ced4da;
+        border-radius: 4px;
+      }
+      .error-text {
+        font-size: 11px;
+        color: #dc3545;
+        font-weight: bold;
+      }
+      @media (max-width: 600px) {
+        .pv-row-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .hcdc-modal-footer {
+        padding: 15px 20px;
+        background: #f5f5f5;
+        text-align: right;
+        border-top: 1px solid #eee;
+      }
+      .btn-primary {
+        background: #008b99;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn-secondary {
+        background: #ccc;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 10px;
+      }
     </style>
   </head>
 
@@ -2237,17 +2346,19 @@
             >
               <i class="fa-brands fa-adn"></i> ADMIN
             </button>
-
-            <button class="btn-stats logout-btn" onclick="handleLogout()">
-              <i class="fas fa-sign-out-alt"></i> LOGOUT
-            </button>
-
             <!-- Nút đổi mật khẩu -->
             <button
               class="btn-stats logout-btn"
               onclick="openChangePasswordPage(); return false;"
             >
               <i class="fas fa-key"></i> PASSWORD
+            </button>
+            <button class="btn-stats logout-btn" onclick="handleExport()">
+              <i class="fa-solid fa-file-export"></i> REPORT
+            </button>
+
+            <button class="btn-stats logout-btn" onclick="handleLogout()">
+              <i class="fas fa-sign-out-alt"></i> LOGOUT
             </button>
           </div>
         </div>
@@ -2814,6 +2925,8 @@
         }
         // --- 1. KHAI BÁO BIẾN TOÀN CỤC ---
         let allData = [];
+        let allUnits = [];
+        let currentReportTags = {}; // Phải khai báo ở đây để dùng chung cho cả 2 hàm
         let filteredData = [];
         let statsData = []; // Dữ liệu dùng riêng cho Thống kê
         let markerLookup = {};
@@ -3665,7 +3778,17 @@
             console.log(`📊 Tổng kho: ${allData.length} mẫu. Năm tìm thấy:`, [
               ...new Set(allData.map((d) => d.sampling_date.getFullYear())),
             ]);
+            // 📊 TẢI DANH SÁCH ĐƠN VỊ (UNITS)
+            const { data: unitData, error: unitError } = await supabaseClient
+              .from('units')
+              .select('*');
 
+            if (unitError) throw unitError;
+
+            // ✅ QUAN TRỌNG: Gán vào biến toàn cục đã khai báo ở đầu file
+            allUnits = unitData;
+
+            console.log(`📡 Đã tải ${allUnits.length} đơn vị vào bộ nhớ.`);
             // 2. Khởi tạo danh sách Đơn vị (CSCCN)
             const wards = [...new Set(allData.map((d) => d.csccn_name))]
               .filter((w) => w)
@@ -4538,24 +4661,43 @@
                 let rowErrors = [];
                 let isDuplicate = false;
                 const sttExcel = row.stt || index + 5;
-                // --- ĐỐI SOÁT MÃ QUẬN (KHUVUC) ---
+                // --- ĐỐI SOÁT MÃ QUẬN (MAQUAN) - CHẤP NHẬN KHUVUC HOẶC MÃ TRẠM ---
                 const inputMaquan = row.maquan?.toString().trim();
-                if (inputMaquan && !VALID_KHUVUC.includes(inputMaquan)) {
-                  rowErrors.push(
-                    `Mã quận '${inputMaquan}' không đúng (KHUVUC1/2/3)`
-                  );
+                const inputMaquanLower = inputMaquan?.toLowerCase();
+
+                if (inputMaquan) {
+                  // 1. Kiểm tra trong danh mục KHUVUC1/2/3
+                  const isKhuVucValid = VALID_KHUVUC.includes(inputMaquan);
+
+                  // 2. Kiểm tra trong danh mục Mã Phường (Mã trạm/CSCCN)
+                  const isStationIDValid =
+                    validMaphuongSet.has(inputMaquanLower);
+
+                  // 🛡️ Chỉ báo lỗi nếu KHÔNG THUỘC cả 2 danh mục trên
+                  if (!isKhuVucValid && !isStationIDValid) {
+                    rowErrors.push(
+                      `Mã quận '${inputMaquan}' không hợp lệ. Phải là mã khu vực (KHUVUC1/2/3) hoặc mã định danh Trạm/CSCCN.`
+                    );
+                  }
+                } else {
+                  // Nếu sếp bắt buộc phải có maquan thì thêm lỗi này, còn không thì bỏ qua
+                  // rowErrors.push('Trống mã quận/đối tượng giám sát');
                 }
-                // --- ĐỐI SOÁT MÃ PHƯỜNG ---
+
+                // --- ĐỐI SOÁT MÃ PHƯỜNG (MAPHUONG_TEMP) ---
                 const inputMaphuong = (
                   row.maphuong ||
                   row['Đơn vị/CSCCN'] ||
-                  row.maphuong_excel
-                )
+                  row.maphuong_excel ||
+                  row.maphuong_temp
+                ) // Thêm ưu tiên cho maphuong_temp nếu có
                   ?.toString()
                   .trim();
+
                 const inputMaphuongLower = inputMaphuong?.toLowerCase();
+
                 if (!inputMaphuong) {
-                  rowErrors.push('Trống mã phường');
+                  rowErrors.push('Trống mã phường (Đơn vị lấy mẫu)');
                 } else if (!validMaphuongSet.has(inputMaphuongLower)) {
                   rowErrors.push(
                     `Mã phường '${inputMaphuong}' không tồn tại trong hệ thống`
@@ -6535,6 +6677,475 @@
           }
           body.scrollTop = body.scrollHeight;
         }
+
+        async function executeExport() {
+          const type = document.getElementById('templateSelect').value;
+          const WEB_APP_URL =
+            'https://script.google.com/macros/s/AKfycbz5FQkJ-0sTENDjCGDfgUbfyoPosUEVaqTSWN3lBaUAF28-PvXu2ERnYYH7Q5x0OoXo/exec';
+          const btn = document.getElementById('btn-final-export');
+
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML =
+              '<i class="fas fa-spinner fa-spin"></i> Đang tạo file...';
+          }
+
+          try {
+            // 🛡️ BẮT BUỘC: Không dùng mode: 'no-cors'
+            const response = await fetch(WEB_APP_URL, {
+              method: 'POST',
+              body: JSON.stringify({
+                type: type,
+                data: currentReportTags, // Đảm bảo biến này đã có dữ liệu
+              }),
+            });
+
+            // Kiểm tra nếu Server trả về lỗi (404, 500...)
+            if (!response.ok) {
+              throw new Error(`Server báo lỗi: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+              showToast('success', 'Xuất báo cáo thành công!');
+              if (btn) {
+                btn.disabled = false;
+                btn.className = 'btn-success'; // Đổi màu nút cho rực rỡ
+                btn.innerHTML =
+                  '<i class="fas fa-external-link-alt"></i> MỞ BÁO CÁO';
+                btn.onclick = () => window.open(result.url, '_blank');
+              }
+            } else {
+              throw new Error(result.error || 'Lỗi không xác định từ Server');
+            }
+          } catch (error) {
+            console.error('Lỗi chi tiết:', error);
+            showToast('error', 'Lỗi: ' + error.message);
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-file-word"></i> THỬ LẠI';
+            }
+          }
+        }
+
+        function aggregateReportData(reports, units) {
+          const tags = {};
+          const now = new Date();
+          const cleanStr = (s) => (s ? s.toString().trim().toLowerCase() : '');
+
+          // --- 1. THÔNG TIN CHUNG ---
+          tags['HCDC_BAO_CAO'] =
+            'TRUNG TÂM KIỂM SOÁT BỆNH TẬT THÀNH PHỐ HỒ CHÍ MINH';
+          tags['PX_BAO_CAO'] = 'TRẠM Y TẾ';
+          tags['NGAY'] = now.getDate();
+          tags['THANG'] = now.getMonth() + 1;
+          tags['NAM_HT'] = now.getFullYear();
+          tags['QUY_BC'] = now.getMonth() + 1 <= 3 ? 'X' : '....';
+          tags['CB_6T'] = now.getMonth() + 1 <= 6 ? 'X' : '....';
+          tags['CB_1N'] = now.getMonth() + 1 > 6 ? 'X' : '....';
+
+          // --- 2. ĐỊNH NGHĨA NGƯỠNG (THRESHOLD) ---
+          const THRESHOLD = {
+            COLI_TONG: 0,
+            ECOLI: 0,
+            ARSENIC: 0.01,
+            DODUC: 2,
+            MAUSAC: 15,
+            MUIVI: 0,
+            PEC: 2,
+            PH_MIN: 6.0,
+            PH_MAX: 8.5,
+            CLO_MIN: 0.2,
+            CLO_MAX: 1.0,
+          };
+
+          // --- 3. HÀM HELPER ---
+          const getFailedParams = (r) => {
+            let failedList = [];
+            const check = (val, field, label) => {
+              const v = parseFloat(val);
+              if (isNaN(v)) return false;
+              let isFail = false;
+              if (field === 'ph')
+                isFail = v < THRESHOLD.PH_MIN || v > THRESHOLD.PH_MAX;
+              else if (field === 'clo_du')
+                isFail = v < THRESHOLD.CLO_MIN || v > THRESHOLD.CLO_MAX;
+              else if (field === 'asen') isFail = v > THRESHOLD.ARSENIC;
+              else if (['coli_tong', 'ecoli', 'muivi'].includes(field))
+                isFail = v > 0;
+              else if (THRESHOLD[field.toUpperCase()] !== undefined)
+                isFail = v > THRESHOLD[field.toUpperCase()];
+
+              if (isFail) failedList.push(label);
+              return isFail;
+            };
+
+            check(r.coli_tong, 'coli_tong', 'Coliform');
+            check(r.ecoli, 'ecoli', 'E.coli');
+            check(r.asen, 'asen', 'Asen');
+            check(r.do_duc, 'do_duc', 'Độ đục');
+            check(r.mau, 'mau', 'Màu sắc');
+            check(r.muivi, 'muivi', 'Mùi vị');
+            check(r.pec, 'pec', 'Permanganat');
+            check(r.ph, 'ph', 'pH');
+            check(r.clo_du, 'clo_du', 'Clo dư');
+            return failedList;
+          };
+
+          const isSampleFailed = (r) => getFailedParams(r).length > 0;
+
+          const filterByCap = (arr, min, max) =>
+            arr.filter((u) => {
+              const c = Number(u.capacity) || 0;
+              return max ? c >= min && c < max : c >= min;
+            }).length;
+
+          // --- 4. PHÂN LOẠI DANH MỤC ĐƠN VỊ ---
+          const allCSCCN = units.filter((u) => cleanStr(u.mode) === 'noikiem');
+          const noiKiemIds = allCSCCN.map((u) => cleanStr(u.maphuong));
+
+          // --- 5. XỬ LÝ NGOẠI KIỂM (HCDC, PX VÀ TỔNG) ---
+          const allExternalReports = reports.filter(
+            (r) => cleanStr(r.mode) === 'ngoaikiem'
+          );
+
+          // Tags Tổng Ngoại Kiểm (TOTAL_)
+          tags['TOTAL_MAU_TONG'] = allExternalReports.length;
+          const totalExtFailed = allExternalReports.filter(isSampleFailed);
+          tags['TOTAL_MAU_KDAT'] = totalExtFailed.length;
+          tags['TOTAL_MAU_DAT'] =
+            tags['TOTAL_MAU_TONG'] - tags['TOTAL_MAU_KDAT'];
+          const allExtFailedParams = [
+            ...new Set(allExternalReports.flatMap((r) => getFailedParams(r))),
+          ];
+          tags['TOTAL_MAU_THONGSOLOI'] =
+            allExtFailedParams.length > 0
+              ? allExtFailedParams.join(', ')
+              : 'Không có';
+
+          // Hàm xử lý riêng cho HCDC và PX
+          const processGroup = (prefix, isHCDC) => {
+            const hcdcKeys = ['tphcm', 'binhduong', 'brvt', 'hcdc'];
+            const groupReports = allExternalReports.filter((r) => {
+              const isFromHCDC = hcdcKeys.includes(cleanStr(r.maphuong_temp));
+              return isHCDC ? isFromHCDC : !isFromHCDC;
+            });
+
+            // Đã sửa: Định nghĩa visitedUnits bên trong để không bị lỗi ReferenceError
+            const visitedIds = [
+              ...new Set(groupReports.map((r) => cleanStr(r.maquan))),
+            ];
+            const visitedUnits = allCSCCN.filter((u) =>
+              visitedIds.includes(cleanStr(u.maphuong))
+            );
+
+            tags[`TONG_DV_${prefix}_KT`] = visitedUnits.length;
+            tags[`N1_${prefix}_KT`] = filterByCap(visitedUnits, 1000, 10000);
+            tags[`N2_${prefix}_KT`] = filterByCap(visitedUnits, 10000, 100000);
+            tags[`N3_${prefix}_KT`] = filterByCap(visitedUnits, 100000);
+
+            tags[`NK_${prefix}_MAU_TONG`] = groupReports.length;
+            const failed = groupReports.filter(isSampleFailed);
+            tags[`NK_${prefix}_MAU_KDAT_TONG`] = failed.length;
+            tags[`NK_${prefix}_MAU_DAT_TONG`] =
+              groupReports.length - failed.length;
+
+            // Tags cho Modal
+            tags[`NK_${prefix}_MAU_KDAT`] = failed.length;
+            tags[`NK_${prefix}_MAU_DAT`] = groupReports.length - failed.length;
+
+            const countKDAT = (field, type) => {
+              return groupReports.filter((r) => {
+                const v = parseFloat(r[field]);
+                if (isNaN(v)) return false;
+                if (type === 'ZERO') return v > 0;
+                if (type === 'RANGE_PH')
+                  return v < THRESHOLD.PH_MIN || v > THRESHOLD.PH_MAX;
+                if (type === 'RANGE_CLO')
+                  return v < THRESHOLD.CLO_MIN || v > THRESHOLD.CLO_MAX;
+                return v > THRESHOLD[type.toUpperCase()];
+              }).length;
+            };
+
+            tags[`NK_${prefix}_COLI_KDAT`] = countKDAT('coli_tong', 'ZERO');
+            tags[`NK_${prefix}_ECOLI_KDAT`] = countKDAT('ecoli', 'ZERO');
+            tags[`NK_${prefix}_ASEN_KDAT`] = countKDAT('asen', 'ARSENIC');
+            tags[`NK_${prefix}_DODUC_KDAT`] = countKDAT('do_duc', 'DODUC');
+            tags[`NK_${prefix}_MAUSAC_KDAT`] = countKDAT('mau', 'MAUSAC');
+            tags[`NK_${prefix}_MUIVI_KDAT`] = countKDAT('muivi', 'ZERO');
+            tags[`NK_${prefix}_PEC_KDAT`] = countKDAT('pec', 'PEC');
+            tags[`NK_${prefix}_CLO_KDAT`] = countKDAT('clo_du', 'RANGE_CLO');
+            tags[`NK_${prefix}_PH_KDAT`] = countKDAT('ph', 'RANGE_PH');
+            // --- Bổ sung liệt kê thông số lỗi riêng cho từng nhóm (HCDC/PX) ---
+            const groupFailedParams = [
+              ...new Set(groupReports.flatMap((r) => getFailedParams(r))),
+            ];
+
+            tags[`NK_${prefix}_MAU_THONGSOLOI`] =
+              groupFailedParams.length > 0
+                ? groupFailedParams.join(', ')
+                : 'Không có';
+          };
+
+          processGroup('HCDC', true);
+          processGroup('PX', false);
+
+          // --- 6. XỬ LÝ NỘI KIỂM (PHẦN A & C) ---
+          const internalReports = reports.filter((r) =>
+            noiKiemIds.includes(cleanStr(r.maphuong_temp))
+          );
+          tags['INT_MAU_TONG'] = internalReports.length;
+
+          const countIntKDAT = (field, type) => {
+            return internalReports.filter((r) => {
+              const v = parseFloat(r[field]);
+              if (isNaN(v)) return false;
+              if (type === 'ZERO') return v > 0;
+              if (type === 'RANGE_PH')
+                return v < THRESHOLD.PH_MIN || v > THRESHOLD.PH_MAX;
+              if (type === 'RANGE_CLO')
+                return v < THRESHOLD.CLO_MIN || v > THRESHOLD.CLO_MAX;
+              return v > THRESHOLD[type.toUpperCase()];
+            }).length;
+          };
+
+          tags['INT_COLI_KDAT'] = countIntKDAT('coli_tong', 'ZERO');
+          tags['INT_ECOLI_KDAT'] = countIntKDAT('ecoli', 'ZERO');
+          tags['INT_ASEN_KDAT'] = countIntKDAT('asen', 'ARSENIC');
+          tags['INT_CLO_KDAT'] = countIntKDAT('clo_du', 'RANGE_CLO');
+          tags['INT_DODUC_KDAT'] = countIntKDAT('do_duc', 'DODUC');
+          tags['INT_MAUSAC_KDAT'] = countIntKDAT('mau', 'MAUSAC');
+          tags['INT_MUIVI_KDAT'] = countIntKDAT('muivi', 'ZERO');
+          tags['INT_PH_KDAT'] = countIntKDAT('ph', 'RANGE_PH');
+          tags['INT_PEC_KDAT'] = countIntKDAT('pec', 'PEC');
+
+          const intFailedReports = internalReports.filter(isSampleFailed);
+          tags['INT_MAU_KDAT'] = intFailedReports.length;
+          tags['INT_MAU_DAT'] =
+            internalReports.length - intFailedReports.length;
+          const intFailedParams = [
+            ...new Set(internalReports.flatMap((r) => getFailedParams(r))),
+          ];
+          tags['INT_MAU_THONGSOLOI'] =
+            intFailedParams.length > 0
+              ? intFailedParams.join(', ')
+              : 'Không có';
+
+          // Đếm đơn vị Nội kiểm thực hiện
+          const activeNoiKiemIds = [
+            ...new Set(internalReports.map((r) => cleanStr(r.maphuong_temp))),
+          ];
+          const checkedUnits = allCSCCN.filter((u) =>
+            activeNoiKiemIds.includes(cleanStr(u.maphuong))
+          );
+
+          tags['TONG_DV_KT'] = checkedUnits.length;
+          tags['N1_KT'] = filterByCap(checkedUnits, 100, 1000);
+          tags['N2_KT'] = filterByCap(checkedUnits, 1000, 15000);
+          tags['N3_KT'] = filterByCap(checkedUnits, 15000, 30000);
+          tags['N4_KT'] = filterByCap(checkedUnits, 30000);
+
+          // --- 7. CÁC THẺ PHỤ TRÁCH (PHẦN A) ---
+          // 1. Nhóm HCDC phụ trách (Công suất >= 1000 m3/nđ)
+          const hcdcPTUnits = allCSCCN.filter(
+            (u) => (Number(u.capacity) || 0) >= 1000
+          );
+          tags['TONG_DV_HCDC_PT'] = hcdcPTUnits.length;
+          // Tính tổng dân số nhóm HCDC phụ trách
+          tags['TONG_DV_HCDC_SODAN_PT'] = hcdcPTUnits.reduce(
+            (sum, u) => sum + (Number(u.total_households) || 0),
+            0
+          );
+
+          // 2. Nhóm PX phụ trách (Công suất < 1000 m3/nđ)
+          // Sếp lưu ý: Nếu PX chỉ quản lý trạm nhỏ thì dùng < 1000,
+          // Nếu PX quản lý TẤT CẢ thì dùng pxPTUnits = allCSCCN;
+          const pxPTUnits = allCSCCN.filter(
+            (u) => (Number(u.capacity) || 0) < 1000
+          );
+          tags['TONG_DV_PX_PT'] = pxPTUnits.length;
+          // Tính tổng dân số nhóm PX phụ trách
+          tags['TONG_DV_PX_SODAN_PT'] = pxPTUnits.reduce(
+            (sum, u) => sum + (Number(u.total_households) || 0),
+            0
+          );
+
+          // 3. Tổng dân số toàn Thành phố (Phần A - Tổng cộng)
+          tags['TONG_DV_PT'] = allCSCCN.length;
+          tags['N1_PT'] = filterByCap(allCSCCN, 100, 1000);
+          tags['N2_PT'] = filterByCap(allCSCCN, 1000, 15000);
+          tags['N3_PT'] = filterByCap(allCSCCN, 15000, 30000);
+          tags['N4_PT'] = filterByCap(allCSCCN, 30000);
+          tags['TONG_CS_TT'] = allCSCCN.reduce(
+            (sum, u) => sum + (Number(u.capacity) || 0),
+            0
+          );
+          tags['TYLE_DAN'] = ((tags['TONG_DAN'] / 9400000) * 100).toFixed(2);
+          // 1. Tổng dân số của TOÀN BỘ các trạm trong hệ thống (Denominator)
+          const tongDanHeThong = allCSCCN.reduce(
+            (sum, u) => sum + (Number(u.total_households) || 0),
+            0
+          );
+          tags['TONG_DAN'] = tongDanHeThong;
+
+          // 2. Tính tỷ lệ dân số PX phụ trách so với Tổng dân hệ thống
+          // Thêm "|| 1" để tránh lỗi chia cho 0 khiến báo cáo hiện "NaN"
+          tags['TYLE_DAN_PX'] = (
+            (tags['TONG_DV_PX_SODAN_PT'] / (tongDanHeThong || 1)) *
+            100
+          ).toFixed(2);
+
+          // 3. Nếu sếp muốn tính tỷ lệ so với dân số toàn TP (ví dụ 9.4 triệu dân)
+          const DAN_SO_TP_HCM = 9400000;
+          tags['TYLE_BAO_PHU_PX'] = (
+            (tags['TONG_DV_PX_SODAN_PT'] / DAN_SO_TP_HCM) *
+            100
+          ).toFixed(2);
+          return tags;
+        }
+        // 2. Hàm điều khiển Modal (Dùng cho hệ thống không Bootstrap)
+        async function handleExport() {
+          const modal = document.getElementById('customModal');
+          const loading = document.getElementById('pv-loading');
+          const content = document.getElementById('pv-content');
+          const templateSelect = document.getElementById('templateSelect');
+
+          if (!modal || !loading || !content) {
+            alert('Thiếu cấu trúc HTML Modal sếp ơi!');
+            return;
+          }
+
+          // 1. Hiển thị trạng thái chờ
+          modal.style.display = 'block';
+          loading.style.display = 'block';
+          content.style.display = 'none';
+
+          // 2. Lấy dải thời gian hiển thị
+          const period = document.getElementById('date-label')
+            ? document.getElementById('date-label').innerText
+            : 'Chưa chọn';
+          const pvPeriod = document.getElementById('pv-period');
+          if (pvPeriod) pvPeriod.innerText = period;
+
+          // 3. TÍNH TOÁN DỮ LIỆU (Chạy 1 lần duy nhất khi mở Modal)
+          setTimeout(() => {
+            try {
+              const dataToProcess =
+                typeof filteredData !== 'undefined' ? filteredData : [];
+
+              // Gọi hàm aggregateReportData thần thánh của anh em mình
+              // Lưu vào biến toàn cục để dùng khi đổi Dropdown
+              currentReportTags = aggregateReportData(
+                dataToProcess,
+                allUnits || []
+              );
+
+              console.log('✅ Tags đã sẵn sàng:', currentReportTags);
+
+              // 4. ĐỔ DỮ LIỆU VÀO GIAO DIỆN
+              renderPreviewData();
+
+              // 5. GẮN SỰ KIỆN ĐỔI MẪU (Để khi sếp chọn 03/04 số nó tự nhảy)
+              templateSelect.onchange = () => {
+                renderPreviewData();
+              };
+
+              // Hoàn tất: Hiện nội dung
+              loading.style.display = 'none';
+              content.style.display = 'block';
+            } catch (e) {
+              console.error('Lỗi Render Modal:', e);
+              loading.innerHTML = `<div style="color:red; padding:20px;">
+        <i class="fas fa-exclamation-triangle"></i> Lỗi tính toán: ${e.message}
+      </div>`;
+            }
+          }, 300);
+        }
+
+        // Hàm Helper để render dữ liệu lên Modal dựa trên Mẫu đã chọn
+        function renderPreviewData() {
+          const tags = currentReportTags;
+          const type = document.getElementById('templateSelect').value; // '03' hoặc '04'
+
+          const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val !== undefined && val !== null ? val : 0;
+          };
+
+          // --- PHẦN A: TÌNH HÌNH CHUNG (Linh hoạt theo loại báo cáo) ---
+          if (type === '03') {
+            // Mẫu 03: Hiện số liệu HCDC phụ trách
+            setVal('pv-pt', tags['TONG_DV_HCDC_PT']);
+            setVal('pv-kt', tags['TONG_DV_HCDC_KT']);
+            document.getElementById('pv-ext-label').innerText = 'HCDC';
+
+            // Ngoại kiểm nhóm HCDC
+            setVal('pv-b1', tags['NK_HCDC_MAU_TONG']);
+            setVal('pv-b2', tags['NK_HCDC_MAU_DAT']);
+            setVal('pv-b3', tags['NK_HCDC_MAU_KDAT']);
+            setVal('pv-b-errors', tags['NK_HCDC_MAU_THONGSOLOI'] || 'Không có');
+          } else {
+            // Mẫu 04: Hiện số liệu Tuyến cơ sở (PX) phụ trách
+            setVal('pv-pt', tags['TONG_DV_PX_PT']);
+            setVal('pv-kt', tags['TONG_DV_PX_KT']);
+            document.getElementById('pv-ext-label').innerText = 'Tuyến cơ sở';
+
+            // Ngoại kiểm nhóm PX
+            setVal('pv-b1', tags['NK_PX_MAU_TONG']);
+            setVal('pv-b2', tags['NK_PX_MAU_DAT']);
+            setVal('pv-b3', tags['NK_PX_MAU_KDAT']);
+            setVal('pv-b-errors', tags['NK_PX_MAU_THONGSOLOI'] || 'Không có');
+          }
+
+          // Các thẻ chung của hệ thống
+          setVal('pv-cs', (tags['TONG_CS_TT'] || 0).toLocaleString());
+          setVal('pv-dan', (tags['TONG_DAN'] || 0).toLocaleString());
+
+          // --- PHẦN B: NỘI KIỂM ĐƠN VỊ (Dùng chung cho cả 2 mẫu) ---
+          setVal('pv-c1', tags['INT_MAU_TONG']);
+          setVal('pv-c2', tags['INT_MAU_DAT']);
+          setVal('pv-c3', tags['INT_MAU_KDAT']);
+          setVal('pv-c-errors', tags['INT_MAU_THONGSOLOI'] || 'Không có');
+        }
+
+        // 3. Hàm đóng Modal
+        function closeCustomModal() {
+          const modal = document.getElementById('customModal');
+          if (modal) modal.style.display = 'none';
+        }
+        /**
+         * Xuất báo cáo từ Template dựa trên bộ Tags
+         */
+        function createHealthReport(templateType, reportData) {
+          const FOLDER_ID = '1DVT-63FnQXhFhJ5mhWR9KSOyPl7jfseJ';
+          const TEMPLATES = {
+            '03': '17OEGAT8ANzPKye65UmPHJSIAWV_89YHXYLuW3EFhvb4',
+            '04': '1dW_EiJjErA811HfGMHhJVnxxbw0RgADzoNgIFsmXaL4',
+          };
+
+          const templateFile = DriveApp.getFileById(TEMPLATES[templateType]);
+          const folder = DriveApp.getFolderById(FOLDER_ID);
+
+          // Tạo bản sao mới
+          const fileName = `Bao_cao_Mau_${templateType}_${
+            reportData.NAM_HT
+          }_${new Date().getTime()}`;
+          const copy = templateFile.makeCopy(fileName, folder);
+          const doc = DocumentApp.openById(copy.getId());
+          const body = doc.getBody();
+
+          // Thay thế các thẻ Tag đơn giản
+          for (let tag in reportData) {
+            body.replaceText(`{{${tag}}}`, reportData[tag] || '0');
+          }
+
+          doc.saveAndClose();
+          return {
+            url: doc.getUrl(),
+            name: fileName,
+          };
+        }
         //INIT()
         init();
       </script>
@@ -6703,13 +7314,125 @@
             <input
               type="text"
               id="ai-chat-input"
-              placeholder="Hỏi về chất lượng nước..."
+              placeholder="Hỏi về rủi ro, Thông tư 52..."
               onkeypress="handleChatKey(event)"
             />
             <button onclick="sendChatToAI()">
               <i class="fa-solid fa-paper-plane"></i>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+    <div id="customModal" class="hcdc-modal-overlay">
+      <div class="hcdc-modal-content">
+        <div class="hcdc-modal-header">
+          <span><i class="fas fa-microscope"></i> XEM TRƯỚC BÁO CÁO</span>
+          <button onclick="closeCustomModal()" class="close-btn">
+            &times;
+          </button>
+        </div>
+        <div class="hcdc-modal-body">
+          <div id="pv-loading" class="text-center">
+            <i class="fas fa-spinner fa-spin"></i> Đang tổng hợp dữ liệu...
+          </div>
+
+          <div id="pv-content" style="display: none">
+            <div class="pv-period-box text-center mb-3">
+              <span class="badge badge-info" style="font-size: 1rem">
+                Giai đoạn: <span id="pv-period"></span>
+              </span>
+            </div>
+
+            <div class="pv-container">
+              <div class="pv-card">
+                <h4 class="pv-card-title">
+                  <i class="fas fa-chart-pie"></i> A. TÌNH HÌNH CHUNG
+                </h4>
+                <div class="pv-card-body">
+                  <div class="pv-item">
+                    <span>Số đơn vị phụ trách:</span> <b id="pv-pt"></b>
+                  </div>
+                  <div class="pv-item">
+                    <span>Số đơn vị thực tế KT:</span> <b id="pv-kt"></b>
+                  </div>
+                  <div class="pv-item">
+                    <span>Tổng công suất:</span> <b id="pv-cs"></b> m³/nđ
+                  </div>
+                  <div class="pv-item">
+                    <span>Tổng số dân:</span> <b id="pv-dan"></b> người
+                  </div>
+                </div>
+              </div>
+
+              <div class="pv-row-grid">
+                <div class="pv-card">
+                  <h4 class="pv-card-title" style="border-left-color: #28a745">
+                    <i class="fas fa-vial"></i> B. NỘI KIỂM ĐƠN VỊ
+                  </h4>
+                  <div class="pv-card-body">
+                    <div class="pv-item">
+                      <span>Tổng số mẫu:</span> <b id="pv-c1"></b>
+                    </div>
+                    <div class="pv-item text-success">
+                      <span>Mẫu ĐẠT:</span> <b id="pv-c2"></b>
+                    </div>
+                    <div class="pv-item text-danger">
+                      <span>Mẫu KHÔNG ĐẠT:</span> <b id="pv-c3"></b>
+                    </div>
+                    <div class="pv-error-box">
+                      <small>Thông số không đạt:</small>
+                      <div id="pv-c-errors" class="error-text">Không có</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pv-card">
+                  <h4 class="pv-card-title" style="border-left-color: #e46a76">
+                    <i class="fas fa-microscope"></i> C. NGOẠI KIỂM (<span
+                      id="pv-ext-label"
+                      >HCDC</span
+                    >)
+                  </h4>
+                  <div class="pv-card-body">
+                    <div class="pv-item">
+                      <span>Tổng số mẫu:</span> <b id="pv-b1"></b>
+                    </div>
+                    <div class="pv-item text-success">
+                      <span>Mẫu ĐẠT:</span> <b id="pv-b2"></b>
+                    </div>
+                    <div class="pv-item text-danger">
+                      <span>Mẫu KHÔNG ĐẠT:</span> <b id="pv-b3"></b>
+                    </div>
+                    <div class="pv-error-box">
+                      <small>Thông số không đạt:</small>
+                      <div id="pv-b-errors" class="error-text">Không có</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hcdc-modal-footer">
+          <div class="form-group">
+            <label for="templateSelect"><b>Chọn loại biểu mẫu:</b></label>
+            <select id="templateSelect" class="form-control">
+              <option value="03">Mẫu số 03: HCDC</option>
+              <option value="04">Mẫu số 04: TYT</option>
+            </select>
+          </div>
+          <button onclick="closeCustomModal()" class="btn-secondary">
+            Đóng
+          </button>
+          <button
+            id="btn-final-export"
+            onclick="executeExport()"
+            class="btn-primary"
+          >
+            <i class="fas fa-file-word"></i> XUẤT GOOGLE DOCS
+          </button>
         </div>
       </div>
     </div>
