@@ -6240,6 +6240,26 @@
             });
 
             container.innerHTML = html;
+            // CẬP NHẬT ZONE TAGS
+            const zoneContainer = document.getElementById('zone-tags');
+            if (zoneContainer) {
+              if (item.affected_wards && Array.isArray(item.affected_wards)) {
+                zoneContainer.innerHTML = item.affected_wards
+                  .map((w) => `<span class="zone-badge">${w.trim()}</span>`)
+                  .join('');
+              } else if (typeof item.affected_wards === 'string') {
+                const wards = item.affected_wards
+                  .split(/[,\n]/)
+                  .map((w) => w.trim())
+                  .filter((w) => w);
+                zoneContainer.innerHTML = wards
+                  .map((w) => `<span class="zone-badge">${w}</span>`)
+                  .join('');
+              } else {
+                zoneContainer.innerHTML =
+                  '<span class="zone-badge">Không xác định</span>';
+              }
+            }
           } catch (err) {
             console.error('Lỗi loadAIInsights:', err);
           }
