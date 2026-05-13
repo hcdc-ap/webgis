@@ -3013,6 +3013,17 @@
         let hcmGeoJSON;
         let boundaryLayer = L.layerGroup(); // Lớp ranh giới TPHCM
         let idwLayer;
+        let riskData = []; // Biến toàn cục chứa dữ liệu nguồn nguy cơ
+        let idwDebounceTimer;
+        let animationTimer = null;
+        let currentDateIndex = 0;
+        let dateList = [];
+        let isAnimating = false;
+        let hexLayer; // Biến toàn cục quản lý lớp lưới lục giác
+        // Thêm 2 biến cache ở ngoài hàm để tránh tải lại danh mục liên tục
+        let cacheUnits = null;
+        let cacheThresholds = null;
+        let tempValidData = []; // Lưu trữ dữ liệu sạch chờ xác nhận nạp
         // Khai báo Layer Group toàn cục
         let riskLayer = L.layerGroup();
         let THRESHOLDS = {};
@@ -3332,8 +3343,6 @@
             position: 'topright',
           })
           .addTo(map);
-        // Khai báo Layer để chứa vùng đệm
-        let bufferLayer = L.layerGroup().addTo(map);
 
         function createBufferZone(lat, lng, radiusKm = 0.5) {
           bufferLayer.clearLayers();
@@ -3373,11 +3382,13 @@
         // Hàm tạo nội dung (giữ nguyên logic thông minh của chúng ta)
         function updateLegendContent(isHeatmapActive) {
           let html = `
-    <h4>Legend</h4>
-    <div class="legend-item"><i style="background: #008b99;"></i> <span>Mẫu đạt </span></div>
-    <div class="legend-item"><i style="background: #f26522;"></i> <span>Mẫu Không đạt</span></div>
-    <div class="legend-item"><span class="legend-line" style="background: #34495e;"></span> <span>Ranh giới</span></div>
-  `;
+          <h4 style="margin-bottom:10px; border-bottom:1px solid #34495e; padding-bottom:5px;">Legend</h4>
+          <div class="legend-item"><i style="background: #008b99;"></i> <span>Mẫu đạt</span></div>
+          <div class="legend-item"><i style="background: #f26522;"></i> <span>Mẫu Không đạt</span></div>
+          <div class="legend-item"><span class="legend-line" style="background: #34495e;"></span> <span>Ranh giới hành chính</span></div>
+        `;
+
+          // --- THÊM CHÚ GIẢI HEATMAP ---
           if (isHeatmapActive) {
             html += `
       <div class="legend-item" style="margin-top:10px; border-top:1px solid #ddd; padding-top:5px;">
@@ -3389,12 +3400,19 @@
       </div>
     `;
           }
+
           return html;
         }
         // --- 7. LẮNG NGHE SỰ KIỆN (BẮT BUỘC ĐỂ CẬP NHẬT LEGEND) ---
         map.on('overlayadd', function (e) {
           if (e.name.includes('Heatmap')) {
             const div = document.querySelector('.info.legend');
+
+            if (div) div.innerHTML = updateLegendContent(true);
+          }
+          if (e.name.includes('Hexagonal Risk Grid')) {
+            const div = document.querySelector('.info.legend');
+
             if (div) div.innerHTML = updateLegendContent(true);
           }
           if (e.name.includes('IDW')) {
@@ -3408,6 +3426,10 @@
         });
         map.on('overlayremove', function (eventLayer) {
           if (eventLayer.name.includes('Heatmap')) {
+            const div = document.querySelector('.info.legend');
+            if (div) div.innerHTML = updateLegendContent(false);
+          }
+          if (eventLayer.name.includes('Hexagonal Risk Grid')) {
             const div = document.querySelector('.info.legend');
             if (div) div.innerHTML = updateLegendContent(false);
           }
@@ -3669,7 +3691,7 @@
           console.groupEnd();
         }
         // Giả sử riskData là biến toàn cục chứa dữ liệu từ loadRiskLocations
-        let riskData = []; // Biến toàn cục chứa dữ liệu nguồn nguy cơ
+
         async function loadRiskLocations() {
           const { data, error } = await supabaseClient
             .from('risk_locations')
@@ -3952,7 +3974,7 @@
             console.error('❌ Lỗi thiết lập Realtime:', err);
           }
         }
-        let idwDebounceTimer;
+
         function applyFilters() {
           const slider = document.getElementById('time-slider');
           if (!slider || !slider.noUiSlider) return;
@@ -4515,10 +4537,7 @@
             overlay.style.display = 'none';
           }
         }
-        let animationTimer = null;
-        let currentDateIndex = 0;
-        let dateList = [];
-        let isAnimating = false;
+
         // 1. TẠO DANH SÁCH NGÀY TỪ date-label (KHÔNG DÙNG SLIDER)
         function generateDateListFromLabel() {
           const dateLabel = document.getElementById('date-label');
@@ -4656,7 +4675,7 @@
           }
         });
         // NHẬP EXCEL
-        let tempValidData = []; // Lưu trữ dữ liệu sạch chờ xác nhận nạp
+
         function openImportModal() {
           document.getElementById('import-modal').style.display = 'flex';
         }
@@ -4992,10 +5011,6 @@
           return date; // YYYY-MM-DD
         }
         //TABLE ANALYTICS
-        // Thêm 2 biến cache ở ngoài hàm để tránh tải lại danh mục liên tục
-        let cacheUnits = null;
-        let cacheThresholds = null;
-
         async function loadAnalyticsData() {
           // 1. Xác định giai đoạn để hiển thị tiêu đề (Giữ nguyên logic của sếp)
           const sourceElement = document.getElementById('date-label');
@@ -6325,6 +6340,10 @@
               alertPointLayer.clearLayers();
               map.removeLayer(alertPointLayer);
             }
+            // Gỡ bỏ lớp Lưới lục giác khi tắt
+            if (hexLayer) {
+              map.removeLayer(hexLayer);
+            }
             btn.innerHTML = '<i class="fa-solid fa-layer-group"></i> CẢNH BÁO';
             btn.classList.remove('active-alert');
             isAlertActive = false;
@@ -6487,7 +6506,7 @@
             if (hasValidData) {
               // Zoom bản đồ một cách mượt mà
               map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-
+              await loadRiskHexGrid();
               // Cập nhật giao diện nút bấm
               btn.innerHTML =
                 '<i class="fa-solid fa-circle-stop"></i> TẮT CẢNH BÁO';
@@ -6521,6 +6540,122 @@
             console.error('Lỗi khi bật lớp cảnh báo:', err);
             showToast('error', 'Có lỗi xảy ra khi xử lý dữ liệu bản đồ.');
           }
+        }
+
+        async function loadRiskHexGrid() {
+          showToast(
+            'info',
+            'Đang dựng lưới phân tích rủi ro đa biến (Sentinel 2.0)...'
+          );
+
+          // 1. Truy vấn dữ liệu từ Materialized View
+          const { data, error } = await supabaseClient
+            .from('mv_risk_hexagons')
+            .select('*');
+
+          if (error) {
+            console.error('Lỗi lấy lưới rủi ro:', error);
+            showToast('error', 'Không thể tải lưới rủi ro.');
+            return;
+          }
+
+          // 2. Dọn dẹp lớp cũ nếu đã tồn tại
+          if (hexLayer) map.removeLayer(hexLayer);
+
+          // 3. Khởi tạo lớp GeoJSON với Logic hiển thị thông minh
+          hexLayer = L.geoJson(
+            data.map((d) => ({
+              type: 'Feature',
+              geometry: d.geojson,
+              properties: {
+                score: d.risk_score,
+                cases: d.case_count,
+                water: d.water_fail_count,
+                params: d.failed_params, // Nhận thông số lỗi từ SQL (Clo dư, pH, E.coli...)
+              },
+            })),
+            {
+              style: (feature) => {
+                const p = feature.properties;
+                // LOGIC VIỀN CẢNH BÁO: Ca bệnh > 0 nhưng mẫu nước lỗi = 0 (Cần tái kiểm tra)
+                const isContradiction = p.cases > 0 && p.water === 0;
+
+                return {
+                  fillColor:
+                    p.score > 5
+                      ? '#d73027' // Rủi ro rất cao (Đỏ đậm)
+                      : p.score > 2
+                      ? '#f26522' // Rủi ro trung bình (Cam)
+                      : '#fee08b', // Rủi ro thấp (Vàng)
+                  fillOpacity: 0.6,
+                  weight: isContradiction ? 3 : 0.8, // Viền dày 3px nếu có mâu thuẫn dữ liệu
+                  color: isContradiction ? '#f26522' : '#fff', // Viền xanh Neon nếu mâu thuẫn, trắng nếu thường
+                  dashArray: isContradiction ? '0' : '3', // Viền liền nếu mâu thuẫn để gây chú ý
+                };
+              },
+              onEachFeature: (f, l) => {
+                const p = f.properties;
+
+                // Logic hiển thị nhãn cảnh báo mâu thuẫn trong Popup
+                const alertBadge =
+                  p.cases > 0 && p.water === 0
+                    ? `<div style="background:#f26522; color:#eee; padding:2px 5px; font-size:10px; border-radius:3px; margin-bottom:5px; text-align:center;">
+                      ❗️GỢI Ý KHU VỰC GIÁM SÁT LẤY MẪU
+                       </div>`
+                    : '';
+
+                // Xây dựng HTML cho danh sách thông số lỗi
+                const paramHtml =
+                  p.water > 0
+                    ? `<div style="margin-top:8px; padding:8px; background:#fff3f3; border-radius:4px; border-left:4px solid #d73027;">
+                        <small><b>Thông số không đạt:</b></small><br>
+                        <span style="color:#d73027; font-size:12px;">${p.params}</span>
+                       </div>`
+                    : `<div style="margin-top:8px; padding:5px; background:#f0f9f0; border-radius:4px;">
+                        <small style="color:#008b99;">✔️ Thông số giám sát hiện đang đạt chuẩn</small>
+                       </div>`;
+
+                l.bindPopup(`
+                    <div style="min-width:220px;">
+                        ${alertBadge}
+                        <div style="font-weight:bold; border-bottom:2px solid #eee; margin-bottom:10px; padding-bottom:5px; color:#2c3e50;">
+                          🛑 Hexagonal Risk Grid
+                        </div>
+                        
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td>Cas tiêu chảy (14 ngày):</td>
+                                <td style="text-align:right;"><b style="color:#d73027; font-size:15px;">${
+                                  p.cases
+                                }</b></td>
+                            </tr>
+                            <tr>
+                                <td>Mẫu nước không đạt:</td>
+                                <td style="text-align:right;"><b style="color:#2980b9;">${
+                                  p.water
+                                }</b></td>
+                            </tr>
+                        </table>
+                        ${paramHtml}
+                        <div style="margin-top:12px; padding-top:8px; border-top:1px dashed #ccc; display:flex; justify-content:space-between; align-items:center;">
+                          <span style="font-size:11px; color:#555; cursor:help; border-bottom: 1px dotted #999;" 
+          title="Calculation weights: Water quality 0.7 - Diarrhea cases 0.3">
+        Sentinel Score:
+    </span>
+    <b style="color:#2c3e50; font-size:15px; letter-spacing: 0.5px;">
+        ${p.score.toFixed(1)}
+    </b>
+                        </div>
+                        <div style="font-size:8px; color:#95a5a6; text-align:right; font-style:italic; margin-top:2px;">
+    (Risk of water quality and diarrhea cases)
+</div>
+                    </div>
+                `);
+              },
+            }
+          ).addTo(map);
+
+          showToast('success', 'Đã cập nhật lưới rủi ro Sentinel mới nhất.');
         }
 
         let optimalLayerGroup = L.featureGroup(); // Dùng FeatureGroup thay vì LayerGroup để có hàm getBounds()
