@@ -12,7 +12,7 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta name="apple-mobile-web-app-title" content="HCDC WebGIS" />
+    <meta name="apple-mobile-web-app-title" content="Tra cứu HCDC" />
     <link
       rel="apple-touch-icon"
       href="https://github.com/hcdc-ap/images-host/blob/main/images/hcdc-logo.png?raw=true"
@@ -2126,6 +2126,204 @@
         cursor: pointer;
         margin-right: 10px;
       }
+      .gis-modal {
+        display: none;
+        position: fixed;
+        z-index: 99999 !important; /* Phải có !important để đè lớp bản đồ */
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        overflow: auto;
+        backdrop-filter: blur(5px);
+        border-radius: 16px;
+      }
+
+      .gis-modal-content {
+        background: white;
+        margin: 3% auto;
+        width: 90%;
+        max-width: 400px;
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      }
+
+      .gis-modal-header {
+        background: linear-gradient(135deg, #008b99, #006a75);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+      }
+      .gis-modal-body {
+        padding: 20px;
+        max-height: 62vh;
+        overflow-y: auto;
+      }
+
+      .control-section {
+        margin-bottom: 6px;
+      }
+      .gis-slider {
+        width: 100%;
+        accent-color: #008b99;
+      }
+      .slider-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #666;
+        margin-top: 4px;
+      }
+      .control-section label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #2c3e50;
+      }
+      .multi-check-list {
+        max-height: 100px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .check-item {
+        padding: 6px 4px;
+        cursor: pointer;
+      }
+
+      .risk-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .opt-toggles label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 6px 0;
+      }
+
+      .gis-modal-footer {
+        padding: 10px 20px;
+        background: #f8f9fa;
+        display: flex;
+        justify-content: flex-end;
+        gap: 17px;
+        border-top: 1px solid #eee;
+      }
+      .btn-cancel {
+        background: #adb5bd;
+        color: white;
+        border: none;
+        padding: 10px 22px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .btn-execute {
+        background: #f26522;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .btn-execute:hover {
+        background: #e55a1b;
+      }
+      .search-box input {
+        width: 100%;
+        padding: 6px;
+        margin-bottom: 5px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+      }
+      /* Đảm bảo Marker phải có kích thước và hiển thị */
+      /* MARKER TỐI ƯU */
+      .custom-sampling-marker {
+        background: transparent;
+        border: none;
+      }
+
+      .marker-outer {
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+        border: 2px solid #fff;
+      }
+
+      .marker-inner {
+        width: 20px;
+        height: 20px;
+        background: var(--color, #008b99); /* sẽ được thay bằng JS */
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        color: white;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Hiệu ứng pulse nhẹ */
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(0, 139, 153, 0.5);
+        }
+        70% {
+          box-shadow: 0 0 0 8px rgba(0, 139, 153, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(0, 139, 153, 0);
+        }
+      }
+
+      .sampling-dot {
+        animation: pulse 2s infinite;
+      }
+      /* Màu đỏ khi đang bật lớp gợi ý */
+      .active-alert {
+        background-color: #e74c3c !important;
+        color: white !important;
+        border: 1px solid #c0392b !important;
+      }
+
+      /* Hiệu ứng nháy nháy cho marker rủi ro rực rỡ */
+      .pulse-effect {
+        animation: marker-pulse 2s infinite;
+      }
+
+      @keyframes marker-pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.15);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
     </style>
   </head>
 
@@ -3017,8 +3215,10 @@
         let idwDebounceTimer;
         let animationTimer = null;
         let currentDateIndex = 0;
+        let currentOptimalData = []; // Biến lưu trữ kết quả tối ưu mới nhất
         let dateList = [];
         let isAnimating = false;
+
         let hexLayer; // Biến toàn cục quản lý lớp lưới lục giác
         // Thêm 2 biến cache ở ngoài hàm để tránh tải lại danh mục liên tục
         let cacheUnits = null;
@@ -6420,7 +6620,7 @@
                     </table>
                     <hr class="popup-divider">
                     <details class="ai-details-toggle">
-                        <summary><b><i class="fa-brands fa-openai"></i> HCDC Sentinel System </b> More...</summary>
+                        <summary><b><i class="fa-brands fa-openai"></i> HCDC WebGIS</b> More...</summary>
                         <div class="ai-text-content">
                             ${aiAnalysis.replace(/\n/g, '<br>')}
                         </div>
@@ -6657,105 +6857,318 @@
 
           showToast('success', 'Đã cập nhật lưới rủi ro Sentinel mới nhất.');
         }
+        // ================================================================
+        // 1. KHAI BÁO BIẾN TOÀN CỤC (Đặt ở đầu Script)
+        // ================================================================
+        var isOptimalActive = isOptimalActive || false;
+        var optimalLayerGroup =
+          optimalLayerGroup || L.featureGroup().addTo(map);
 
-        let optimalLayerGroup = L.featureGroup(); // Dùng FeatureGroup thay vì LayerGroup để có hàm getBounds()
-        let isOptimalActive = false;
+        // ================================================================
+        // 2. KHỞI TẠO HỆ THỐNG (Gắn sự kiện khi load trang)
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', function () {
+          console.log('✅ Sentinel Optimization System Initialized');
+
+          // === KHỞI TẠO SLIDER ===
+          const quotaSlider = document.getElementById('opt-quota');
+          const quotaLabel = document.getElementById('lbl-quota');
+          if (quotaSlider && quotaLabel) {
+            quotaSlider.oninput = function () {
+              quotaLabel.textContent = this.value;
+            };
+          }
+
+          const epiSlider = document.getElementById('opt-epi-weight');
+          const epiLabel = document.getElementById('lbl-epi');
+          if (epiSlider && epiLabel) {
+            epiSlider.oninput = function () {
+              epiLabel.textContent = this.value + '%';
+            };
+          }
+
+          // === CHỌN TẤT CẢ PHƯỜNG ===
+          const chkAll = document.getElementById('chk-all-wards');
+          if (chkAll) {
+            chkAll.addEventListener('change', function () {
+              const isChecked = this.checked;
+              document.querySelectorAll('.ward-chk').forEach((chk) => {
+                chk.checked = isChecked;
+              });
+            });
+          }
+
+          // === GÁN SỰ KIỆN CHO NÚT THỰC THI ===
+          const btnExecute = document.getElementById('btn-execute-opt');
+          if (btnExecute) {
+            btnExecute.onclick = executeOptimization;
+          }
+
+          console.log('🎛️ All modal controls initialized successfully');
+        });
+
+        // ================================================================
+        // 3. ĐIỀU KHIỂN GIAO DIỆN (Modal & Toggle Layer)
+        // ================================================================
         async function showOptimalPoints() {
           const btnOptimal = document.getElementById('btn-goiy');
+          const modal = document.getElementById('modal-optimization');
 
-          // 1. LOGIC TOGGLE: Nếu đang bật thì thực hiện Tắt
+          // NẾU ĐANG BẬT -> TẮT
           if (isOptimalActive) {
-            if (map.hasLayer(optimalLayerGroup)) {
+            optimalLayerGroup.clearLayers();
+            if (map.hasLayer(optimalLayerGroup))
               map.removeLayer(optimalLayerGroup);
-            }
-            optimalLayerGroup.clearLayers(); // Xóa hết các điểm cũ
+
             btnOptimal.innerHTML =
               '<i class="fa-solid fa-wand-magic-sparkles"></i> GỢI Ý';
-            btnOptimal.classList.remove('active-alert');
+            btnOptimal.classList.remove('active-alert'); // Trở về màu xanh gốc
             isOptimalActive = false;
-            return; // Thoát hàm
+            showToast('info', 'Đã tắt Gợi ý các vị trí lấy mẫu');
+            return;
           }
 
-          // 2. GỌI DỮ LIỆU TỪ SUPABASE
-          const { data, error } = await supabaseClient.rpc(
-            'get_optimized_sampling_points'
-          );
-
-          if (error) return showToast('error', error.message);
-
-          if (!data || data.length === 0) {
-            return showToast('warning', 'Dữ liệu tối ưu chưa sẵn sàng.');
+          // NẾU ĐANG TẮT -> MỞ MODAL CẤU HÌNH
+          if (modal) {
+            modal.style.display = 'block';
+            const listContainer = document.getElementById('ward-list-items');
+            if (listContainer && listContainer.children.length === 0) {
+              await loadWardSelector();
+            }
           }
+        }
 
-          // 3. KHỞI TẠO VÀ VẼ ĐIỂM
-          optimalLayerGroup.addTo(map);
+        // Hàm nạp danh mục phường
+        async function loadWardSelector() {
+          console.log('📦 Đang nạp danh mục hành chính...');
+          const { data, error } = await supabaseClient
+            .from('hcm_ward_stats')
+            .select('maXa, tenXa')
+            .order('tenXa');
 
-          data.forEach((item) => {
-            const count = parseInt(item.num_samples_here) || 1;
+          if (error) return console.error('Lỗi DB:', error.message);
 
-            for (let i = 0; i < count; i++) {
-              // Jitter tọa độ để không bị đè lên nhau
-              const randomLat = item.lat + (Math.random() - 0.5) * 0.004;
-              const randomLng = item.lng + (Math.random() - 0.5) * 0.004;
+          const container = document.getElementById('ward-list-items');
+          if (container) {
+            container.innerHTML = data
+              .map(
+                (w) => `
+            <label class="check-item">
+                <input type="checkbox" class="ward-chk" value="${w.maXa}"> ${w.tenXa}
+            </label>
+        `
+              )
+              .join('');
+          }
+        }
 
-              const badgeColor =
-                item.risk_score / 10000 >= 8 ? '#c0392b' : '#008b99';
+        // Bộ lọc tìm kiếm phường
+        function filterWards() {
+          let input = document
+            .getElementById('ward-search')
+            .value.toLowerCase();
+          let items = document.querySelectorAll('#ward-list-items .check-item');
+          items.forEach((item) => {
+            item.style.display = item.innerText.toLowerCase().includes(input)
+              ? 'block'
+              : 'none';
+          });
+        }
 
-              const marker = L.marker([randomLat, randomLng], {
+        // ================================================================
+        // 4. HÀM THỰC THI CHÍNH (Xử lý dữ liệu & Vẽ Marker)
+        // ================================================================
+        async function executeOptimization() {
+          console.group('🚀 SENTINEL V5: ADVANCED OPTIMIZATION');
+
+          const btnOptimal = document.getElementById('btn-goiy');
+          const modal = document.getElementById('modal-optimization');
+
+          try {
+            // 1. THU THẬP THAM SỐ TỪ MODAL (Ép kiểu chặt chẽ)
+            const quotaInput = document.getElementById('opt-quota');
+            const quota = quotaInput ? parseInt(quotaInput.value) : 261;
+
+            const epiWeightInput = document.getElementById('opt-epi-weight');
+            const epiWeight = epiWeightInput
+              ? parseFloat(epiWeightInput.value) / 100
+              : 0.3;
+
+            // Lấy danh sách phường đã chọn
+            const selectedWards = Array.from(
+              document.querySelectorAll('.ward-chk:checked')
+            ).map((chk) => chk.value);
+
+            // Lấy loại rủi ro (Bệnh viện, Trường học...)
+            const riskTypes = Array.from(
+              document.querySelectorAll('.risk-type-chk:checked')
+            ).map((chk) => chk.value);
+
+            // Tham số nâng cao (Boolean)
+            const blindSpots =
+              document.getElementById('opt-blind-spots')?.checked || false;
+            const longTime =
+              document.getElementById('opt-long-time')?.checked || false;
+
+            // Kiểm tra đầu vào tối thiểu
+            if (selectedWards.length === 0) {
+              showToast(
+                'warning',
+                'Sếp ơi, chọn ít nhất một Phường/Xã đã nhé!'
+              );
+              console.groupEnd();
+              return;
+            }
+
+            console.log('📤 Đang gửi tham số sang Sentinel V5:', {
+              in_wards: selectedWards,
+              in_quota: quota,
+              in_risk_types: riskTypes,
+            });
+
+            // Đóng modal và thông báo bắt đầu xử lý
+            if (modal) modal.style.display = 'none';
+            showToast('info', 'Hệ thống đang tính toán vị trí tối ưu...');
+
+            // 2. GỌI RPC (Sử dụng V5 để khớp tham số in_...)
+            const { data, error } = await supabaseClient.rpc(
+              'get_optimized_sampling_points_v5',
+              {
+                in_wards: selectedWards,
+                in_quota: quota,
+                in_epi_weight: epiWeight,
+                in_risk_types: riskTypes,
+                in_use_blind_spots: blindSpots,
+                in_use_long_time: longTime,
+              }
+            );
+
+            if (error) throw error;
+            currentOptimalData = data; // LƯU DỮ LIỆU VÀO ĐÂY ĐỂ XUẤT EXCEL
+            console.log(`✅ Đã lưu ${data.length} điểm để sẵn sàng xuất Excel`);
+
+            if (!data || data.length === 0) {
+              showToast(
+                'warning',
+                'Không tìm thấy điểm nào phù hợp. Sếp kiểm tra lại ranh giới phường nhé!'
+              );
+              console.groupEnd();
+              return;
+            }
+
+            console.log(`✅ Thành công! Trả về ${data.length} điểm.`);
+
+            // 3. LÀM SẠCH VÀ VẼ LÊN BẢN ĐỒ
+            optimalLayerGroup.clearLayers();
+            optimalLayerGroup.addTo(map);
+
+            data.forEach((item) => {
+              const lat = parseFloat(item.lat);
+              const lng = parseFloat(item.lng);
+              const score = parseFloat(item.final_score || 0);
+
+              if (isNaN(lat) || isNaN(lng)) return;
+
+              // Phân loại mức độ rủi ro & Màu sắc
+              // THAY THẾ TOÀN BỘ KHỐI PHÂN LOẠI
+              const reason = item.reason;
+              let riskLabel, riskColor, riskDetail;
+
+              if (reason === '🔥 TRỌNG ĐIỂM NGUY CƠ') {
+                riskLabel = 'RẤT CAO';
+                riskColor = '#c0392b';
+                riskDetail = 'Trọng điểm rủi ro hoặc vùng mù giám sát.';
+              } else {
+                // "🛡️ GIÁM SÁT ĐỊNH KỲ"
+                // Phân nhánh phụ dựa trên score để chi tiết hơn
+                if (score > 100) {
+                  riskLabel = 'TRUNG BÌNH';
+                  riskColor = '#f1c40f';
+                  riskDetail = 'Khu vực dân cư rủi ro trung bình.';
+                } else {
+                  riskLabel = 'THẤP';
+                  riskColor = '#27ae60';
+                  riskDetail = 'Giám sát định kỳ.';
+                }
+              }
+
+              // Chọn Icon theo loại hình rủi ro
+              const type = (item.location_type || '').toLowerCase();
+              let iconClass = 'fa-droplet';
+              if (type.includes('hospital') || type.includes('clinic'))
+                iconClass = 'fa-hospital';
+              else if (type.includes('school')) iconClass = 'fa-school';
+              else if (type.includes('waste') || type.includes('landfill'))
+                iconClass = 'fa-trash-can';
+
+              // Tạo Marker với CSS Pulse Effect
+              const marker = L.marker([lat, lng], {
                 icon: L.divIcon({
-                  className: 'sampling-dot',
-                  html: `<div style="background-color: ${badgeColor}; width: 22px; height: 22px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-                               <i class="fa-solid fa-droplet" style="font-size: 10px;"></i>
-                           </div>`,
-                  iconSize: [22, 22],
-                  iconAnchor: [11, 11],
+                  className: 'custom-sampling-marker',
+                  html: `
+                        <div class="marker-outer" style="box-shadow: 0 0 0 4px ${riskColor}33;">
+                            <div class="marker-inner" style="background-color: ${riskColor};">
+                                <i class="fa-solid ${iconClass}" style="font-size: 11px;"></i>
+                            </div>
+                        </div>
+                    `,
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15],
+                  popupAnchor: [0, -15],
                 }),
               }).bindPopup(`
-                <div style="font-family: sans-serif; min-width: 200px;">
-                    <b style="color:${badgeColor};">💧 MẪU NGOẠI KIỂM #${
-                i + 1
-              }</b><br>
-                    <hr style="margin: 5px 0">
-                    <b>Địa bàn:</b> ${item.ten_xa}<br>
-                    <b>Chỉ số rủi ro:</b> ${(item.risk_score / 10000).toFixed(
-                      1
-                    )}/10<br>
-                    <p style="font-size: 11px; color: #666; margin-top: 5px;">
-                        <i class="fa-solid fa-circle-info"></i> Vị trí dựa trên TT 52/2024/TT-BYT.
-                    </p>
-                    <a href="https://www.google.com/maps/search/?api=1&query=${randomLat},${randomLng}" target="_blank" 
-                       style="display: block; text-align: center; background: #008b99; color: white; padding: 6px; border-radius: 4px; text-decoration: none; font-weight: bold;">
-                       🎯 Google Maps dẫn đường
-                    </a>
+                <div style="min-width: 240px;">
+                    <div style="background:${riskColor}; color:white; padding:10px; text-align:center; font-weight:bold; border-radius:6px 6px 0 0;">
+                        🚨 RỦI RO: ${riskLabel}
+                    </div>
+                    <div style="padding:14px; background:#fff; border:1px solid #eee; border-top:none; border-radius:0 0 6px 6px;">
+                        <p style="margin:0 0 8px;"><b>Đơn vị:</b> ${
+                          item.ward_name
+                        }</p>
+                        <p style="margin:0 0 12px; font-size:12px; color:#666;">Chỉ số rủi ro: <b>${score.toFixed(
+                          1
+                        )}</b></p>
+                        <p style="margin:0 0 8px;"><b>Lý do:</b> <i style="font-size:12px;">${
+                          item.reason
+                        }</i></p>
+                                                
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" 
+                           target="_blank" 
+                           style="display:block; text-align:center; background:${riskColor}; color:white; padding:10px; border-radius:6px; text-decoration:none; font-weight:400; font-size:12px;">
+                           <i class="fa-solid fa-location-arrow"></i> DẪN ĐƯỜNG GOOGLE MAPS
+                        </a>
+                    </div>
                 </div>
             `);
 
               marker.addTo(optimalLayerGroup);
+            });
+
+            // 4. ZOOM VÀ CẬP NHẬT TRẠNG THÁI NÚT
+            const bounds = optimalLayerGroup.getBounds();
+            if (bounds.isValid()) {
+              map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
             }
-          });
 
-          // 4. KIỂM TRA BOUNDS VÀ ZOOM
-          const bounds = optimalLayerGroup.getBounds();
-          if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [40, 40] });
+            if (btnOptimal) {
+              btnOptimal.innerHTML =
+                '<i class="fa-solid fa-circle-stop"></i> TẮT GỢI Ý';
+              btnOptimal.classList.add('active-alert');
+            }
 
-            // Cập nhật giao diện nút bấm
-            btnOptimal.innerHTML =
-              '<i class="fa-solid fa-circle-stop"></i> TẮT GỢI Ý';
-            btnOptimal.classList.add('active-alert');
             isOptimalActive = true;
-
-            showToast(
-              'success',
-              `Đã xác định ${
-                optimalLayerGroup.getLayers().length
-              } vị trí tối ưu.`
-            );
-          } else {
-            showToast('error', 'Tọa độ không hợp lệ.');
+            showToast('success', `Hệ thống đã phân bổ ${data.length} vị trí.`);
+          } catch (err) {
+            console.error('💥 Lỗi Sentinel:', err);
+            showToast('error', 'Không thể thực thi tối ưu hóa: ' + err.message);
+          } finally {
+            console.groupEnd();
           }
         }
-
+        function closeOptimalModal() {
+          const modal = document.getElementById('modal-optimization');
+          if (modal) modal.style.display = 'none';
+        }
         async function handleAdminSync() {
           // 1. Hiện thông báo yêu cầu mật khẩu
           const password = prompt(
@@ -6826,31 +7239,65 @@
           showToast('success', 'Đã hoàn tất nạp địa chỉ vào Database!');
         }
         async function fastExportExcel() {
-          showToast('info', 'Đang tạo file Excel...');
+          if (!currentOptimalData || currentOptimalData.length === 0) {
+            return showToast(
+              'warning',
+              'Sếp ơi, phải chạy "Tối ưu hóa" trên bản đồ trước khi xuất file!'
+            );
+          }
 
-          const { data, error } = await supabaseClient.rpc(
-            'get_optimized_sampling_points'
-          );
-          if (error) return showToast('error', error.message);
+          showToast('info', 'Đang đóng gói danh sách kiểm tra...');
 
-          const excelData = data.map((item, index) => ({
-            STT: index + 1,
-            'Địa bàn': item.ten_xa,
-            'Địa chỉ gợi ý': item.dia_chi_goi_y || 'Chưa cập nhật',
-            'Tọa độ (Lat, Lng)': `${item.lat}, ${item.lng}`,
-            'Mức độ rủi ro': (item.risk_score / 10000).toFixed(1) + '/10',
-            'Căn cứ pháp lý': item.reason,
-          }));
+          try {
+            const excelData = currentOptimalData.map((item, index) => ({
+              STT: index + 1,
+              'Đơn vị hành chính': item.ward_name,
+              'Loại hình':
+                item.location_type === 'random_point'
+                  ? 'Giám sát định kỳ'
+                  : 'Trọng điểm rủi ro',
+              'Vĩ độ (Lat)': item.lat,
+              'Kinh độ (Lng)': item.lng,
+              'Tọa độ Maps': item.lat + ',' + item.lng,
+              'Chỉ số rủi ro': item.final_score.toFixed(1),
+              'Căn cứ phân loại': item.reason,
+              'Ghi chú': 'Theo hướng dẫn tại TT 52/2024/TT-BYT',
+            }));
 
-          const worksheet = XLSX.utils.json_to_sheet(excelData);
-          const workbook = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(workbook, worksheet, 'KeHoachNgoaiKiem');
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-          XLSX.writeFile(
-            workbook,
-            `Ke_hoach_HCDC_${new Date().toLocaleDateString('vi-VN')}.xlsx`
-          );
-          showToast('success', 'Tải file thành công!');
+            // Tối ưu độ rộng cột để file nhìn chuyên nghiệp
+            const wscols = [
+              { wch: 5 },
+              { wch: 25 },
+              { wch: 20 },
+              { wch: 15 },
+              { wch: 15 },
+              { wch: 25 },
+              { wch: 15 },
+              { wch: 40 },
+              { wch: 30 },
+            ];
+            worksheet['!cols'] = wscols;
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(
+              workbook,
+              worksheet,
+              'KeHoachSentinel'
+            );
+
+            // Xuất file với ngày tháng hiện tại
+            const dateStr = new Date()
+              .toISOString()
+              .slice(0, 10)
+              .replace(/-/g, '');
+            XLSX.writeFile(workbook, `HCDC_Sentinel_Plan_${dateStr}.xlsx`);
+
+            showToast('success', 'Đã tải xuống danh sách vị trí lấy mẫu!');
+          } catch (err) {
+            showToast('error', 'Lỗi xuất file: ' + err.message);
+          }
         }
         function toggleAIChat() {
           const chat = document.getElementById('ai-chat-window');
@@ -7689,6 +8136,173 @@
             class="btn-primary"
           >
             <i class="fas fa-file-word"></i> XUẤT GOOGLE DOCS
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="modal-optimization" class="gis-modal">
+      <div class="gis-modal-content">
+        <!-- Header -->
+        <div class="gis-modal-header">
+          <div class="header-title">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            TỐI ƯU VỊ TRÍ LẤY MẪU
+          </div>
+          <span class="close-modal" onclick="closeOptimalModal()">✕</span>
+        </div>
+
+        <div class="gis-modal-body">
+          <!-- Quota -->
+          <div class="control-section">
+            <label
+              >Tổng định mức mẫu toàn thành phố:
+              <strong id="lbl-quota">168</strong></label
+            >
+            <input
+              type="range"
+              id="opt-quota"
+              min="20"
+              max="500"
+              value="168"
+              step="1"
+              class="gis-slider"
+            />
+            <div class="slider-labels">
+              <span>20</span>
+              <span>500</span>
+            </div>
+          </div>
+
+          <!-- Trọng số Dịch tễ -->
+          <div class="control-section">
+            <label
+              >Trọng số cas bệnh (14 ngày gần nhất):
+              <strong id="lbl-epi">30%</strong></label
+            >
+            <input
+              type="range"
+              id="opt-epi-weight"
+              min="10"
+              max="60"
+              value="30"
+              step="5"
+              class="gis-slider"
+            />
+            <div class="slider-labels">
+              <span>Giám sát định kỳ (10%)</span>
+              <span>Giám sát dịch tễ (60%)</span>
+            </div>
+          </div>
+
+          <hr />
+
+          <!-- Chọn Phường/Xã -->
+          <div class="control-section">
+            <label>Đơn vị hành chính:</label>
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input
+                type="text"
+                id="ward-search"
+                placeholder="Tìm kiếm phường..."
+                onkeyup="filterWards()"
+              />
+            </div>
+            <div id="ward-selector-container" class="multi-check-list">
+              <label class="check-item all-option">
+                <input type="checkbox" id="chk-all-wards" />
+                <b>--All--</b>
+              </label>
+              <div id="ward-list-items"></div>
+            </div>
+          </div>
+
+          <hr />
+
+          <!-- Tiêu chí nâng cao -->
+          <div class="control-section">
+            <label>Tiêu chí tối ưu nâng cao:</label>
+            <div class="opt-toggles">
+              <label class="toggle-item">
+                <input type="checkbox" id="opt-blind-spots" checked />
+                <span>Vùng mù giám sát (Chưa có điểm lấy mẫu)</span>
+              </label>
+              <label class="toggle-item">
+                <input type="checkbox" id="opt-long-time" checked />
+                <span>Nơi lâu chưa tái kiểm tra (>90 ngày)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Vị trí rủi ro -->
+          <div class="control-section">
+            <label>Vị trí rủi ro trọng điểm:</label>
+            <div class="risk-grid">
+              <label
+                ><input
+                  type="checkbox"
+                  value="hospital"
+                  class="risk-type-chk"
+                  checked
+                />
+                🏥 Bệnh viện</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  value="school"
+                  class="risk-type-chk"
+                  checked
+                />
+                🏫 Trường học</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  value="cemetery"
+                  class="risk-type-chk"
+                />
+                ⚰️ Nghĩa trang</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  value="slaughterhouse"
+                  class="risk-type-chk"
+                />
+                🐔 Cơ sở Giết mổ</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  value="landfill"
+                  class="risk-type-chk"
+                />
+                🗑️ Bãi rác</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  value="waste_station"
+                  class="risk-type-chk"
+                />
+                🚛 Trạm trung chuyển rác</label
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="gis-modal-footer">
+          <button class="btn-cancel" onclick="closeOptimalModal()">
+            <i class="fa-solid fa-xmark"></i> HỦY BỎ
+          </button>
+          <button
+            id="btn-execute-opt"
+            class="btn-execute"
+            onclick="executeOptimization()"
+          >
+            <i class="fa-solid fa-bolt"></i> CHẠY TỐI ƯU HÓA
           </button>
         </div>
       </div>
