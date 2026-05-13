@@ -12,7 +12,7 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta name="apple-mobile-web-app-title" content="Tra cứu HCDC" />
+    <meta name="apple-mobile-web-app-title" content="HCDC WebGIS" />
     <link
       rel="apple-touch-icon"
       href="https://github.com/hcdc-ap/images-host/blob/main/images/hcdc-logo.png?raw=true"
@@ -687,7 +687,7 @@
         margin-top: 8px;
         color: #4a5568;
         max-height: 200px;
-        text-align:justify;
+        text-align: justify;
         overflow-y: auto; /* Thêm cuộn nếu nội dung quá dài */
       }
       /* Container cho mỗi section của AI */
@@ -3964,7 +3964,7 @@
             document.querySelectorAll('.f-param:checked')
           ).map((c) => c.value);
 
-          // Lọc dữ liệu theo thời gian và địa bàn trước (cho Thống kê)
+          // 1. Lọc dữ liệu theo thời gian và địa bàn
           statsData = allData.filter((d) => {
             const time = d.sampling_date.getTime();
             return (
@@ -3974,7 +3974,7 @@
             );
           });
 
-          // Lọc sâu hơn cho Bản đồ và Bảng
+          // 2. Lọc sâu cho Bản đồ và Bảng (Dữ liệu này sẽ đẩy vào Analytics)
           filteredData = statsData.filter((d) => {
             const mGen =
               general === 'all' ||
@@ -3987,22 +3987,28 @@
             return mGen && mParam;
           });
 
-          updateUI(); // Cập nhật Map, Table, Badge
+          updateUI(); // Cập nhật Map, Table chính
 
-          // Debounce IDW để không bị lag khi kéo Slider nhanh
+          // 3. Cập nhật các lớp phân tích (Debounce để mượt mà)
           clearTimeout(idwDebounceTimer);
           idwDebounceTimer = setTimeout(() => {
             const param = document.getElementById('idw-selector').value;
             updateIDW(param);
-          }, 300);
 
-          // Cập nhật biểu đồ nếu đang mở
-          if (
-            document.getElementById('analytics-overlay').style.display ===
-            'flex'
-          ) {
-            renderCharts();
-          }
+            // CHỖ NÀY QUAN TRỌNG: Nếu sếp đang mở bảng phân tích, cập nhật nó luôn bằng dữ liệu vừa lọc
+            if (
+              document.getElementById('tables-overlay').style.display === 'flex'
+            ) {
+              loadAnalyticsData();
+            }
+
+            if (
+              document.getElementById('analytics-overlay').style.display ===
+              'flex'
+            ) {
+              renderCharts();
+            }
+          }, 300);
         }
 
         function updateUI() {
@@ -4986,11 +4992,15 @@
           return date; // YYYY-MM-DD
         }
         //TABLE ANALYTICS
+        // Thêm 2 biến cache ở ngoài hàm để tránh tải lại danh mục liên tục
+        let cacheUnits = null;
+        let cacheThresholds = null;
+
         async function loadAnalyticsData() {
+          // 1. Xác định giai đoạn để hiển thị tiêu đề (Giữ nguyên logic của sếp)
           const sourceElement = document.getElementById('date-label');
           let startDate = '',
             endDate = '';
-
           if (sourceElement) {
             const dates = sourceElement.innerText.split(' - ');
             if (dates.length === 2) {
@@ -5006,63 +5016,72 @@
             )}</b> đến <b>${formatDateDisplay(endDate)}</b>`;
           }
 
-          showToast('info', 'Đang phân tích kho dữ liệu...');
-
           try {
-            // 1. Kéo dữ liệu phụ (Units và Thresholds thường ít, không lo limit)
-            const [resUnits, resThresholds] = await Promise.all([
-              supabaseClient
-                .from('units')
-                .select('maphuong, csccn_name, capacity')
-                .eq('mode', 'noikiem'),
-              supabaseClient
-                .from('threshold_configs')
-                .select('param_code, limit_min, limit_max'),
-            ]);
+            // 2. Tải danh mục (Chỉ tải 1 lần duy nhất)
+            if (!cacheUnits || !cacheThresholds) {
+              const [resUnits, resThresholds] = await Promise.all([
+                supabaseClient
+                  .from('units')
+                  .select('maphuong, csccn_name, capacity')
+                  .eq('mode', 'noikiem'),
+                supabaseClient
+                  .from('threshold_configs')
+                  .select('param_code, limit_min, limit_max'),
+              ]);
+              cacheUnits = resUnits.data;
+              cacheThresholds = resThresholds.data;
+            }
 
-            // 2. CHIẾN THUẬT KÉO BÁO CÁO (VƯỢT RÀO 1000 DÒNG)
-            let allReports = [];
-            let from = 0;
-            let to = 999;
-            let hasMore = true;
+            // 3. CHIẾN THUẬT ĐỒNG BỘ:
+            // Nếu filteredData đã có (do người dùng bóp filter), ta dùng nó luôn.
+            // Nếu chưa có (mới load trang), ta mới đi fetch từ Supabase.
+            let dataToAnalyze = [];
 
-            while (hasMore) {
-              const { data: batch, error } = await supabaseClient
-                .from('water_reports')
-                .select('*')
-                .filter('sampling_date', 'gte', startDate || '2024-01-01') // Lấy từ 2024 cho chắc sếp nhé
-                .filter('sampling_date', 'lte', endDate || '2026-12-31')
-                .range(from, to);
-
-              if (error) throw error;
-
-              allReports = allReports.concat(batch);
-
-              if (batch.length < 1000) {
-                hasMore = false;
-              } else {
-                from += 1000;
-                to += 1000;
+            if (
+              typeof filteredData !== 'undefined' &&
+              filteredData.length > 0
+            ) {
+              // Dùng ngay dữ liệu sếp vừa lọc ở ngoài Map/Table
+              dataToAnalyze = filteredData;
+            } else {
+              // Trường hợp dự phòng nếu chưa có dữ liệu lọc
+              showToast('info', 'Đang tải dữ liệu gốc...');
+              let from = 0;
+              let to = 999;
+              let hasMore = true;
+              while (hasMore) {
+                const { data: batch, error } = await supabaseClient
+                  .from('water_reports')
+                  .select('*')
+                  .filter('sampling_date', 'gte', startDate || '2024-01-01')
+                  .filter('sampling_date', 'lte', endDate || '2026-12-31')
+                  .range(from, to);
+                if (error) throw error;
+                dataToAnalyze = dataToAnalyze.concat(batch);
+                if (batch.length < 1000) hasMore = false;
+                else {
+                  from += 1000;
+                  to += 1000;
+                }
               }
             }
 
-            // 3. XỬ LÝ MAP DỮ LIỆU
+            // 4. CHUẨN BỊ MAP & RENDER (Đồng bộ 100% với Filter)
             const thresholdMap = new Map(
-              resThresholds.data.map((t) => [t.param_code, t])
+              cacheThresholds.map((t) => [t.param_code, t])
             );
             const unitMap = Object.fromEntries(
-              resUnits.data.map((u) => [u.maphuong, u.csccn_name])
+              cacheUnits.map((u) => [u.maphuong, u.csccn_name])
             );
 
-            // 4. RENDER CÁC BẢNG PHÂN TÍCH VỚI ĐẦY ĐỦ DỮ LIỆU
-            renderComplianceTable(allReports, resUnits.data);
-            renderSummaryTable(allReports, unitMap, thresholdMap);
-            renderDetailTable(allReports, thresholdMap);
-            renderAlertTable(allReports, unitMap, thresholdMap);
+            renderComplianceTable(dataToAnalyze, cacheUnits);
+            renderSummaryTable(dataToAnalyze, unitMap, thresholdMap);
+            renderDetailTable(dataToAnalyze, thresholdMap);
+            renderAlertTable(dataToAnalyze, unitMap, thresholdMap);
 
             showToast(
               'success',
-              `Phân tích hoàn tất trên ${allReports.length} mẫu dữ liệu.`
+              `Phân tích hoàn tất trên ${dataToAnalyze.length} mẫu đã chọn.`
             );
           } catch (err) {
             console.error('Lỗi phân tích:', err);
@@ -5627,28 +5646,40 @@
         }
 
         /**
-         * Render bảng theo dõi tiến độ nộp mẫu
+         * Render bảng theo dõi tiến độ nộp mẫu (Bản đã sửa lỗi Filter)
          */
         function renderComplianceTable(reports, units) {
           const head = `
-        <thead class="table-dark sticky-top">
-            <tr>
-                <th>Đơn vị/CSCCN</th>
-                <th class="text-center">Công suất (m³/đêm)</th>
-                <th class="text-center">Định mức (Quý)</th>
-                <th class="text-center">Thực tế nộp</th>
-                <th class="text-center">Tỷ lệ hoàn thành</th>
-                <th class="text-center">Trạng thái</th>
-            </tr>
-        </thead>`;
+    <thead class="table-dark sticky-top">
+        <tr>
+            <th>Đơn vị/CSCCN</th>
+            <th class="text-center">Công suất (m³/đêm)</th>
+            <th class="text-center">Định mức (Quý)</th>
+            <th class="text-center">Thực tế nộp</th>
+            <th class="text-center">Tỷ lệ hoàn thành</th>
+            <th class="text-center">Trạng thái</th>
+        </tr>
+    </thead>`;
 
           const tbody = getTableBody('table-analytic-tiendo', head);
           if (!tbody) return;
 
-          // 1. Thống kê số mẫu nộp theo từng đơn vị
+          // --- BƯỚC QUAN TRỌNG: LỌC ĐƠN VỊ THEO FILTER ---
+          // Lấy giá trị ward đang chọn ở ngoài giao diện
+          const currentWardFilter =
+            document.getElementById('f-ward')?.value || 'all';
+
+          // Chỉ giữ lại những đơn vị khớp với lựa chọn của sếp
+          const filteredUnits = units.filter(
+            (u) =>
+              currentWardFilter === 'all' || u.csccn_name === currentWardFilter
+          );
+
+          // 1. Thống kê số mẫu nộp (Chỉ tính từ danh sách reports đã lọc)
           const actualCountMap = {};
           reports.forEach((r) => {
-            const id = r.maphuong_temp;
+            // Lưu ý: Dùng maphuong_temp hoặc maphuong tùy theo cấu trúc data của sếp
+            const id = r.maphuong_temp || r.maphuong;
             actualCountMap[id] = (actualCountMap[id] || 0) + 1;
           });
 
@@ -5657,8 +5688,8 @@
             totalReq = 0,
             totalAct = 0;
 
-          // 2. Duyệt danh sách đơn vị để tạo hàng dữ liệu
-          let rowsHtml = units
+          // 2. Duyệt danh sách đơn vị ĐÃ LỌC để tạo hàng dữ liệu
+          let rowsHtml = filteredUnits
             .map((u) => {
               const cap = u.capacity || 0;
               const required = getRequiredSamples(cap);
@@ -5666,7 +5697,7 @@
               const progress =
                 required > 0 ? ((actual / required) * 100).toFixed(1) : 0;
 
-              // Tích lũy số liệu
+              // Tích lũy số liệu (Chỉ tích lũy những gì đang hiển thị)
               totalCap += cap;
               totalReq += required;
               totalAct += actual;
@@ -5679,63 +5710,64 @@
                     }</span>`;
 
               return `
-            <tr>
-                <td class="fw-bold">${u.csccn_name}</td>
-                <td class="text-center text-muted small">${cap.toLocaleString()}</td>
-                <td class="text-center fw-bold text-primary">${required}</td>
-                <td class="text-center">${actual}</td>
-                <td class="text-center">
-                    <div class="progress" style="height: 8px; margin-bottom: 2px;">
-                        <div class="progress-bar ${
-                          progress >= 100 ? 'bg-success' : 'bg-info'
-                        }" 
-                             style="width: ${Math.min(progress, 100)}%"></div>
-                    </div>
-                    <small style="font-size: 10px;">${progress}%</small>
-                </td>
-                <td class="text-center">${status}</td>
-            </tr>`;
+        <tr>
+            <td class="fw-bold">${u.csccn_name}</td>
+            <td class="text-center text-muted small">${cap.toLocaleString()}</td>
+            <td class="text-center fw-bold text-primary">${required}</td>
+            <td class="text-center">${actual}</td>
+            <td class="text-center">
+                <div class="progress" style="height: 8px; margin-bottom: 2px;">
+                    <div class="progress-bar ${
+                      progress >= 100 ? 'bg-success' : 'bg-info'
+                    }" 
+                         style="width: ${Math.min(progress, 100)}%"></div>
+                </div>
+                <small style="font-size: 10px;">${progress}%</small>
+            </td>
+            <td class="text-center">${status}</td>
+        </tr>`;
             })
             .join('');
 
-          // 3. THÊM HÀNG TỔNG CỘNG VÀO CUỐI
-          if (units.length > 0) {
+          // 3. THÊM HÀNG TỔNG CỘNG (Chỉ hiện nếu có dữ liệu)
+          if (filteredUnits.length > 0) {
             const totalProgress =
               totalReq > 0 ? ((totalAct / totalReq) * 100).toFixed(1) : 0;
 
             rowsHtml += `
-            <tr class="table-secondary fw-bold border-top border-dark">
-                <td class="text-center">TỔNG CỘNG HỆ THỐNG</td>
-                <td class="text-center">${totalCap.toLocaleString()}</td>
-                <td class="text-center text-primary">${totalReq}</td>
-                <td class="text-center text-dark">${totalAct}</td>
-                <td class="text-center">
-                    <div class="progress" style="height: 12px; margin-bottom: 2px;">
-                        <div class="progress-bar ${
-                          totalProgress >= 100 ? 'bg-success' : 'bg-warning'
-                        }" 
-                             style="width: ${Math.min(
-                               totalProgress,
-                               100
-                             )}%"></div>
-                    </div>
-                    <span class="small">${totalProgress}%</span>
-                </td>
-                <td class="text-center">
-                    ${
-                      totalAct >= totalReq
-                        ? '<span class="text-success small">HOÀN THÀNH</span>'
-                        : `<span class="text-danger small">THIẾU ${
-                            totalReq - totalAct
-                          } MẪU</span>`
-                    }
-                </td>
-            </tr>`;
+    <tr class="table-secondary fw-bold border-top border-dark">
+        <td class="text-center">${
+          currentWardFilter === 'all'
+            ? 'TỔNG CỘNG HỆ THỐNG'
+            : 'TỔNG CỘNG LỰA CHỌN'
+        }</td>
+        <td class="text-center">${totalCap.toLocaleString()}</td>
+        <td class="text-center text-primary">${totalReq}</td>
+        <td class="text-center text-dark">${totalAct}</td>
+        <td class="text-center">
+            <div class="progress" style="height: 12px; margin-bottom: 2px;">
+                <div class="progress-bar ${
+                  totalProgress >= 100 ? 'bg-success' : 'bg-warning'
+                }" 
+                     style="width: ${Math.min(totalProgress, 100)}%"></div>
+            </div>
+            <span class="small">${totalProgress}%</span>
+        </td>
+        <td class="text-center">
+            ${
+              totalAct >= totalReq
+                ? '<span class="text-success small">HOÀN THÀNH</span>'
+                : `<span class="text-danger small">THIẾU ${
+                    totalReq - totalAct
+                  } MẪU</span>`
+            }
+        </td>
+    </tr>`;
           }
 
           tbody.innerHTML =
             rowsHtml ||
-            '<tr><td colspan="6" class="text-center p-4 text-muted">Không có dữ liệu đơn vị nội kiểm.</td></tr>';
+            '<tr><td colspan="6" class="text-center p-4 text-muted">Không tìm thấy đơn vị phù hợp với bộ lọc.</td></tr>';
         }
         /**
          * Xuất dữ liệu từ 3 bảng thống kê ra 1 file Excel đa sheet
