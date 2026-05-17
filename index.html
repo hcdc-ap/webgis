@@ -6328,189 +6328,170 @@
           document.querySelector('.collapsible').classList.remove('show');
         });
         function parseAIAnalysis(text) {
-          if (!text || typeof text !== 'string') return [];
+  if (!text || typeof text !== 'string') return [];
 
-          // 1. Dọn dẹp và chuẩn hóa: Thêm dấu xuống hàng trước các số thứ tự để dễ tách
-          // Nó sẽ tìm các cụm như " 1. ", " 2. " và chèn \n vào trước chúng
-          let cleanText = text
-            .replace(/\r\n/g, '\n')
-            .replace(/(\s)(\d+\.\s)/g, '\n$2')
-            .trim();
+  let cleanText = text.replace(/\r\n/g, '\n').trim();
+  const sections = [];
+  let actionSection = null; // Biến tạm để giữ phần Hành động
 
-          // 2. Tách Section: Tách dựa trên số thứ tự hoặc tiêu đề trong ngoặc []
-          const rawSections = cleanText.split(
-            /(?=\n\d+\.|\n\[.*?\]|^ \d+\.|^\d+\.|^\[.*?\])/g
-          );
+  // 1. TÌM PHẦN [HÀNH ĐỘNG] NHƯNG CHƯA ĐẨY VÀO MẢNG NGAY
+  const actionMatch = cleanText.match(/\[HÀNH ĐỘNG\]:\s*(\{[\s\S]*?\})/);
+  if (actionMatch) {
+    try {
+      let jsonStr = actionMatch[1]
+        .replace(/'/g, '"')
+        .replace(/(\w+)(?=\s*:)/g, '"$1"');
+      
+      const actionObj = JSON.parse(jsonStr);
+      actionSection = {
+        title: 'HÀNH ĐỘNG KHUYẾN NGHỊ',
+        type: 'action_timeline',
+        data: actionObj
+      };
+      
+      // Xóa khỏi text chính để các bước sau không xử lý lại
+      cleanText = cleanText.replace(actionMatch[0], '').trim();
+    } catch (e) {
+      console.warn("Lỗi parse JSON hành động:", e);
+    }
+  }
 
-          const sections = [];
+  // 2. XỬ LÝ CÁC PHẦN PHÂN TÍCH (ĐẨY VÀO MẢNG TRƯỚC)
+  const rawSections = cleanText.split(/(?=\n\d+\.|\n\[.*?\]|^ \d+\.|^\d+\.|^\[.*?\])/g);
 
-          for (let sec of rawSections) {
-            const trimmedSec = sec.trim();
-            if (!trimmedSec) continue;
+  for (let sec of rawSections) {
+    const trimmedSec = sec.trim();
+    if (!trimmedSec) continue;
 
-            const lines = trimmedSec.split('\n');
-            let rawTitle = lines[0].trim();
-            let rawBody = lines.slice(1).join('\n').trim();
+    const lines = trimmedSec.split('\n');
+    let rawTitle = lines[0].trim();
+    let rawBody = lines.slice(1).join('\n').trim();
 
-            // --- LOGIC XỬ LÝ TIÊU ĐỀ (BỎ "THÔNG TIN BỔ SUNG") ---
-            let finalTitle = '';
-            // Nếu là số thứ tự hoặc nằm trong ngoặc [] thì lấy làm tiêu đề
-            if (/^(\d+\.|\[.*?\])/.test(rawTitle)) {
-              finalTitle = rawTitle;
-            } else {
-              // Nếu không phải, đẩy hết vào body
-              rawBody = rawTitle + '\n' + rawBody;
-            }
+    let finalTitle = /^(\d+\.|\[.*?\])/.test(rawTitle) ? rawTitle : '';
+    if (!finalTitle) rawBody = rawTitle + '\n' + rawBody;
 
-            const currentSection = {
-              // Làm sạch tiêu đề: Giữ nguyên ngoặc [] nhưng bỏ dấu sao **
-              title: finalTitle.replace(/\*\*/g, '').trim(),
-              content: [],
-            };
+    const currentSection = {
+      title: finalTitle.replace(/\*\*/g, '').trim(),
+      type: 'standard',
+      content: []
+    };
 
-            // 3. XỬ LÝ NỘI DUNG CHI TIẾT
-            const bodyLines = rawBody
-              .split('\n')
-              .filter((l) => l.trim().length > 0);
+    const bodyLines = rawBody.split('\n').filter(l => l.trim().length > 0);
+    for (let line of bodyLines) {
+      let processedText = line.trim();
+      
+      processedText = processedText
+        .replace(/\[(.*?)\]/g, '<b>[$1]</b>')
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/(Tăng)/g, '<span class="trend-highlight trend-increase">$1</span>')
+        .replace(/(Giảm)/g, '<span class="trend-highlight trend-decrease">$1</span>')
+        .replace(/(\d+[\.,]?\d*\s?(mg\/L|NTU|%|mẫu|m|°C))/gi, '<strong>$1</strong>');
 
-            for (let line of bodyLines) {
-              let processedText = line.trim();
+      currentSection.content.push({
+        type: /^[•\-+*→]/.test(processedText) ? 'item' : 'paragraph',
+        text: processedText.replace(/^[•\-+*→]\s*/, ''),
+      });
+    }
+    if (currentSection.content.length > 0) sections.push(currentSection);
+  }
 
-              // ĐẬM CHỮ TRONG NGOẶC [ ] - Đúng ý sếp
-              processedText = processedText.replace(
-                /\[(.*?)\]/g,
-                '<b>[$1]</b>'
-              );
+  // 3. CUỐI CÙNG MỚI ĐẨY HÀNH ĐỘNG VÀO (ĐỂ NÓ NẰM DƯỚI CÙNG)
+  if (actionSection) {
+    sections.push(actionSection);
+  }
 
-              // Đậm Markdown ** **
-              processedText = processedText.replace(
-                /\*\*(.*?)\*\*/g,
-                '<b>$1</b>'
-              );
+  return sections;
+}
+async function loadAIInsights() {
+  console.group('🚀 LOAD AI INSIGHTS');
+  try {
+    const { data, error } = await supabaseClient
+      .from('ai_daily_insights')
+      .select('*')
+      .order('prediction_date', { ascending: false })
+      .limit(1);
 
-              // Highlight xu hướng và đơn vị
-              processedText = processedText
-                .replace(
-                  /(Tăng)/g,
-                  '<span class="trend-highlight trend-increase">$1</span>'
-                )
-                .replace(
-                  /(Giảm)/g,
-                  '<span class="trend-highlight trend-decrease">$1</span>'
-                )
-                .replace(
-                  /(Ổn định)/g,
-                  '<span class="trend-highlight trend-stable">$1</span>'
-                )
-                .replace(
-                  /(\d+[\.,]?\d*\s?(mg\/L|NTU|%|mẫu|m|°C))/gi,
-                  '<strong>$1</strong>'
-                );
+    const container = document.getElementById('ai-content');
+    if (error || !data || data.length === 0) {
+      if (container) container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Chưa có nhận định hôm nay</div>';
+      return;
+    }
 
-              currentSection.content.push({
-                type: /^[•\-+*→]/.test(processedText) ? 'item' : 'paragraph',
-                text: processedText.replace(/^[•\-+*→]\s*/, ''),
-              });
-            }
-
-            if (currentSection.title || currentSection.content.length > 0) {
-              sections.push(currentSection);
-            }
-          }
-          return sections;
-        }
-        async function loadAIInsights() {
-          try {
-            const { data, error } = await supabaseClient
-              .from('ai_daily_insights')
-              .select('*')
-              .order('prediction_date', { ascending: false })
-              .limit(1);
-
-            const container = document.getElementById('ai-content');
-            if (error || !data || data.length === 0) {
-              if (container)
-                container.innerHTML =
-                  '<div class="ai-text" style="text-align:center; color:#999;">Chưa có nhận định hôm nay</div>';
-              return;
-            }
-
-            const item = data[0];
-            const sections = parseAIAnalysis(item.analysis_text);
-
-            // Khởi tạo HTML với phần header (Ngày, Thời tiết, Rủi ro)
-            let html = `
-      <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px dashed #ddd;">
+    const item = data[0];
+    const sections = parseAIAnalysis(item.analysis_text);
+    
+    // Header: Ngày & Mức độ rủi ro
+    let html = `
+      <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #ddd;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-           <small style="color:#666;">📅 ${item.prediction_date}</small>
-           <span class="risk-badge ${
-             item.risk_level === 'Cao' ? 'high' : 'low'
-           }">${item.risk_level}</span>
+           <small style="color:#666; font-weight:600;">📅 ${item.prediction_date}</small>
+           <span class="risk-badge ${item.risk_level === 'Cao' ? 'high' : 'low'}">${item.risk_level}</span>
         </div>
-        <div style="font-size: 0.85rem; color: #555; margin-top: 4px;">
-           <i class="fa-solid fa-sun"></i> ${
-             item.weather_info?.desc || 'N/A'
-           } | ${item.weather_info?.temp || 'N/A'}°C
+        <div style="font-size: 0.85rem; color: #555; margin-top: 5px;">
+           <i class="fa-solid fa-cloud-sun"></i> ${item.weather_info?.desc || 'N/A'} | ${item.weather_info?.temp || 'N/A'}°C
         </div>
       </div>
     `;
 
-            // Lặp qua từng Section để vẽ
-            sections.forEach((sec) => {
-              // Vẽ tiêu đề (Số thứ tự hoặc cụm trong ngoặc [])
-              if (sec.title) {
-                // Nếu tiêu đề là cụm trong ngoặc [], mình bôi đậm và cho màu xanh chuyên nghiệp
-                const isBracketTitle = /^\[.*?\]/.test(sec.title);
-                const titleStyle = isBracketTitle
-                  ? 'color:#00796b; font-weight:bold; margin-top:15px;'
-                  : 'text-align: justify; margin-top:12px;';
-                html += `<div style="${titleStyle} margin-bottom:8px;">${sec.title}</div>`;
-              }
+    // Render từng Section
+    sections.forEach((sec) => {
+      if (sec.type === 'action_timeline') {
+        // --- VẼ TIMELINE HÀNH ĐỘNG ---
+        html += `<div style="margin: 20px 0 10px; border-left: 4px solid #00796b; padding-left: 12px;">
+                    <b style="color: #00796b; text-transform: uppercase; font-size: 0.9rem;">${sec.title}</b>
+                 </div>`;
+        
+        for (let [timeframe, tasks] of Object.entries(sec.data)) {
+          let color = "#555", bgColor = "#f9f9f9";
+          if (timeframe.includes('NGAY LẬP TỨC')) { color = "#d32f2f"; bgColor = "#fff5f5"; }
+          else if (timeframe.includes('NGẮN HẠN')) { color = "#ef6c00"; bgColor = "#fff8f1"; }
+          else if (timeframe.includes('TRUNG HẠN')) { color = "#1976d2"; bgColor = "#f0f7ff"; }
 
-              // Vẽ từng dòng nội dung - ÉP XUỐNG HÀNG BẰNG THẺ DIV
-              sec.content.forEach((line) => {
-                const isItem = line.type === 'item';
-                const style = `
-          display: block; 
-          margin-bottom: 8px; 
-          line-height: 1.6; 
-          text-align: justify;
-          ${isItem ? 'padding-left: 15px; position: relative;' : ''}
-        `;
-
-                const bullet = isItem
-                  ? '<span style="position:absolute; left:0;">•</span>'
-                  : '';
-
-                html += `<div style="${style}">${bullet}${line.text}</div>`;
-              });
-            });
-
-            container.innerHTML = html;
-            // CẬP NHẬT ZONE TAGS
-            const zoneContainer = document.getElementById('zone-tags');
-            if (zoneContainer) {
-              if (item.affected_wards && Array.isArray(item.affected_wards)) {
-                zoneContainer.innerHTML = item.affected_wards
-                  .map((w) => `<span class="zone-badge">${w.trim()}</span>`)
-                  .join('');
-              } else if (typeof item.affected_wards === 'string') {
-                const wards = item.affected_wards
-                  .split(/[,\n]/)
-                  .map((w) => w.trim())
-                  .filter((w) => w);
-                zoneContainer.innerHTML = wards
-                  .map((w) => `<span class="zone-badge">${w}</span>`)
-                  .join('');
-              } else {
-                zoneContainer.innerHTML =
-                  '<span class="zone-badge">Không xác định</span>';
-              }
-            }
-          } catch (err) {
-            console.error('Lỗi loadAIInsights:', err);
-          }
+          html += `
+            <div style="margin-bottom: 12px; padding: 12px; background: ${bgColor}; border-radius: 8px; border: 1px solid ${color}33;">
+              <div style="color: ${color}; font-weight: bold; font-size: 0.8rem; margin-bottom: 8px; display: flex; align-items: center; text-transform: uppercase;">
+                <i class="fa-solid fa-bolt-lightning" style="margin-right: 8px;"></i> ${timeframe}
+              </div>
+              <ul style="margin: 0; padding-left: 18px; color: #333; font-size: 0.85rem; line-height: 1.6;">
+                ${tasks.map(task => `<li style="margin-bottom: 4px;">${task}</li>`).join('')}
+              </ul>
+            </div>
+          `;
         }
+      } else {
+        // --- VẼ NHẬN ĐỊNH TIÊU CHUẨN ---
+        if (sec.title) {
+          const isBracket = /^\[.*?\]/.test(sec.title);
+          const titleStyle = isBracket ? 'color:#00796b; font-weight:bold; margin-top:18px;' : 'font-weight:700; margin-top:15px; color:#333;';
+          html += `<div style="${titleStyle} margin-bottom:10px; font-size:0.95rem;">${sec.title}</div>`;
+        }
+
+        sec.content.forEach((line) => {
+          const isItem = line.type === 'item';
+          const style = `display: block; margin-bottom: 8px; line-height: 1.6; text-align: justify; font-size: 0.88rem; color:#444; ${isItem ? 'padding-left: 18px; position: relative;' : ''}`;
+          const bullet = isItem ? `<span style="position:absolute; left:0; color:#00796b;">${/^[→]/.test(line.text) ? '' : '•'}</span>` : '';
+          html += `<div style="${style}">${bullet}${line.text}</div>`;
+        });
+      }
+    });
+
+    container.innerHTML = html;
+
+    // CẬP NHẬT ZONE TAGS (Phường bị ảnh hưởng)
+    const zoneContainer = document.getElementById('zone-tags');
+    if (zoneContainer && item.affected_wards) {
+      const wards = Array.isArray(item.affected_wards) ? item.affected_wards : item.affected_wards.split(/[,\n]/).filter(w => w.trim());
+      zoneContainer.innerHTML = wards.map(w => `<span class="zone-badge">${w.trim()}</span>`).join('');
+    }
+  } catch (err) {
+    console.error('💥 Lỗi loadAIInsights:', err);
+    if (document.getElementById('ai-content')) {
+      document.getElementById('ai-content').innerHTML = '<div style="color:red; font-size:0.8rem; padding:10px;">Lỗi xử lý dữ liệu AI</div>';
+    }
+  } finally {
+    console.groupEnd();
+  }
+}
 
         // Hàm đóng mở Modal
         function toggleAIModal() {
