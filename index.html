@@ -3998,42 +3998,64 @@
         }
         // 2. Hàm vẽ markers lên riskLayer
         function renderRiskMarkers() {
-          // 1. Xóa các điểm cũ để tránh vẽ đè
-          riskLayer.clearLayers();
-          // 2. Kiểm tra nếu không có dữ liệu thì dừng luôn
-          if (!riskData || riskData.length === 0) {
-            console.warn('⚠️ Không có dữ liệu nguồn nguy cơ để hiển thị.');
-            return;
-          }
-          riskData.forEach((loc) => {
-            // 3. Kiểm tra an toàn: Chỉ vẽ khi có đủ tọa độ
-            if (loc.lat && loc.lng) {
-              const style = riskStyles[loc.type] || riskStyles['default'];
-              // 4. Tạo CircleMarker duy nhất cho mỗi điểm
-              const marker = L.circleMarker([loc.lat, loc.lng], {
-                radius: 6,
-                fillColor: style.color,
-                color: '#fff',
-                weight: 1,
-                fillOpacity: 0.9,
-              });
-              // 5. Gán Popup
-              marker.bindPopup(`
-        <div style="text-align:left">
-            <strong style="color:${style.color}; font-size: 1.1em;">${loc.name}</strong><br>
+  riskLayer.clearLayers();
+  
+  if (!riskData || riskData.length === 0) {
+    console.warn('⚠️ Không có dữ liệu nguồn nguy cơ để hiển thị.');
+    return;
+  }
+
+  riskData.forEach((loc) => {
+    if (loc.lat && loc.lng) {
+      const style = riskStyles[loc.type] || riskStyles['default'];
+      
+      // 1. Dùng L.divIcon để có thể render HTML (FontAwesome)
+      const customIcon = L.divIcon({
+        className: 'custom-risk-icon', // Class để sếp tinh chỉnh CSS nếu cần
+        html: `
+          <div style="
+            background-color: ${style.color}; 
+            width: 17px; 
+            height: 17px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border: 2px solid white; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            color: white;
+          ">
+            <i class="fa-solid ${style.icon}" style="font-size: 12px;"></i>
+          </div>
+        `,
+        iconSize: [7, 7],
+        iconAnchor: [4, 4],
+        popupAnchor: [0, -4]
+      });
+
+      // 2. Sử dụng L.marker thay vì L.circleMarker
+      const marker = L.marker([loc.lat, loc.lng], {
+        icon: customIcon
+      });
+
+      marker.bindPopup(`
+        <div style="text-align:left; min-width: 150px;">
+            <strong style="color:${style.color}; font-size: 1.1em; display: block; margin-bottom: 5px;">
+                <i class="fa-solid ${style.icon}"></i> ${loc.name}
+            </strong>
             <b>Phân loại:</b> ${loc.type}<br>
-            <hr style="margin: 5px 0">
-            <button class="btn btn-sm btn-outline-primary" 
+            <hr style="margin: 8px 0">
+            <button class="btn btn-sm btn-primary w-100" 
                     onclick="map.flyTo([${loc.lat}, ${loc.lng}], 17)">
-                Zoom in
+                <i class="fa-solid fa-search-plus"></i> Zoom in
             </button>
         </div>
       `);
-              // 6. Thêm vào Layer Group
-              riskLayer.addLayer(marker);
-            }
-          });
-        }
+
+      riskLayer.addLayer(marker);
+    }
+  });
+}
         // --- 3. CÁC HÀM XỬ LÝ DỮ LIỆU ---
         async function init() {
           try {
