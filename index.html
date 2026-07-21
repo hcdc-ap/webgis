@@ -4940,159 +4940,165 @@
           });
         }
         // 1. Hàm xem trước và đối soát dữ liệu
-        async function previewExcel(input) {
-          if (!input.files[0]) return;
-          const file = input.files[0];
-          const reader = new FileReader();
-          reader.onload = async function (e) {
-            try {
-              const data = new Uint8Array(e.target.result);
-              // Đọc file với cellDates để xử lý ngày tháng chuẩn
-              const workbook = XLSX.read(data, {
-                type: 'array',
-                cellDates: true,
-              });
-              const sheet = workbook.Sheets[workbook.SheetNames[0]];
-              const jsonData = XLSX.utils.sheet_to_json(sheet, {
-                range: 3,
-              });
-              const tbody = document.getElementById('preview-body');
-              const summaryDiv = document.getElementById('import-summary');
-              const containerDiv = document.getElementById('preview-container');
-              // Reset giao diện
-              tbody.innerHTML = '';
-              summaryDiv.style.display = 'block'; // Đảm bảo hiện hàng thông báo
-              containerDiv.style.display = 'block';
-              tempValidData = [];
-              let validCount = 0,
-                invalidCount = 0,
-                duplicateCount = 0;
-              // 1. TẢI DỮ LIỆU ĐỐI SOÁT (Tối ưu range để tránh RLS chặn hoặc sót data)
-              const [resReports, resUnits] = await Promise.all([
-                supabaseClient.from('water_reports').select('sample_code'),
-                supabaseClient.from('units').select('maphuong').range(0, 10000),
-              ]);
-              const usedSampleCodes = new Set(
-                resReports.data?.map((d) => d.sample_code?.toString().trim()) ||
-                  []
-              );
-              const validMaphuongSet = new Set(
-                resUnits.data
-                  ?.map((u) => u.maphuong?.toString().trim().toLowerCase())
-                  .filter(Boolean) || []
-              );
-              const VALID_KHUVUC = ['KHUVUC1', 'KHUVUC2', 'KHUVUC3'];
-              // 2. XỬ LÝ TỪNG HÀNG TRONG EXCEL
-              jsonData.forEach((row, index) => {
-                let rowErrors = [];
-                let isDuplicate = false;
-                const sttExcel = row.stt || index + 5;
-                // --- ĐỐI SOÁT MÃ QUẬN (MAQUAN) - CHẤP NHẬN KHUVUC HOẶC MÃ TRẠM ---
-                const inputMaquan = row.maquan?.toString().trim();
-                const inputMaquanLower = inputMaquan?.toLowerCase();
+async function previewExcel(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  
+  reader.onload = async function (e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      // Đọc file với cellDates để xử lý ngày tháng chuẩn
+      const workbook = XLSX.read(data, {
+        type: 'array',
+        cellDates: true,
+      });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(sheet, {
+        range: 3,
+      });
+      const tbody = document.getElementById('preview-body');
+      const summaryDiv = document.getElementById('import-summary');
+      const containerDiv = document.getElementById('preview-container');
+      
+      // Reset giao diện
+      tbody.innerHTML = '';
+      summaryDiv.style.display = 'block'; 
+      containerDiv.style.display = 'block';
+      tempValidData = [];
+      let validCount = 0,
+        invalidCount = 0,
+        duplicateCount = 0;
 
-                if (inputMaquan) {
-                  // 1. Kiểm tra trong danh mục KHUVUC1/2/3
-                  const isKhuVucValid = VALID_KHUVUC.includes(inputMaquan);
+      // --- BƯỚC MỚI: Gom tất cả mã mẫu từ Excel để gọi DB cho nhẹ ---
+      const excelSampleCodes = [
+        ...new Set(
+          jsonData.map((row) => row.mamau?.toString().trim()).filter(Boolean)
+        ),
+      ];
 
-                  // 2. Kiểm tra trong danh mục Mã Phường (Mã trạm/CSCCN)
-                  const isStationIDValid =
-                    validMaphuongSet.has(inputMaquanLower);
+      // 1. TẢI DỮ LIỆU ĐỐI SOÁT (Chỉ tải những mã mẫu có trong file Excel)
+      const [resReports, resUnits] = await Promise.all([
+        supabaseClient
+          .from('water_reports')
+          .select('maphuong_temp, sampling_date, sample_code') // Lấy đủ 3 cột cấu thành Constraint
+          .in('sample_code', excelSampleCodes), // Lọc siêu tốc!
+        supabaseClient.from('units').select('maphuong').range(0, 10000),
+      ]);
 
-                  // 🛡️ Chỉ báo lỗi nếu KHÔNG THUỘC cả 2 danh mục trên
-                  if (!isKhuVucValid && !isStationIDValid) {
-                    rowErrors.push(
-                      `Mã quận '${inputMaquan}' không hợp lệ. Phải là mã khu vực (KHUVUC1/2/3) hoặc mã định danh Trạm/CSCCN.`
-                    );
-                  }
-                } else {
-                  // Nếu sếp bắt buộc phải có maquan thì thêm lỗi này, còn không thì bỏ qua
-                  // rowErrors.push('Trống mã quận/đối tượng giám sát');
-                }
+      // --- BƯỚC MỚI: Tạo bộ khóa 3 cột (Composite Key) từ DB trả về ---
+      const usedCompositeKeys = new Set(
+        resReports.data?.map(
+          (d) => `${d.maphuong_temp}_${d.sampling_date}_${d.sample_code}`
+        ) || []
+      );
 
-                // --- ĐỐI SOÁT MÃ PHƯỜNG (MAPHUONG_TEMP) ---
-                const inputMaphuong = (
-                  row.maphuong ||
-                  row['Đơn vị/CSCCN'] ||
-                  row.maphuong_excel ||
-                  row.maphuong_temp
-                ) // Thêm ưu tiên cho maphuong_temp nếu có
-                  ?.toString()
-                  .trim();
+      const validMaphuongSet = new Set(
+        resUnits.data
+          ?.map((u) => u.maphuong?.toString().trim().toLowerCase())
+          .filter(Boolean) || []
+      );
+      const VALID_KHUVUC = ['KHUVUC1', 'KHUVUC2', 'KHUVUC3'];
+      
+      // 2. XỬ LÝ TỪNG HÀNG TRONG EXCEL
+      jsonData.forEach((row, index) => {
+        let rowErrors = [];
+        let isDuplicate = false;
+        const sttExcel = row.stt || index + 5;
+        
+        // --- ĐỐI SOÁT MÃ QUẬN (MAQUAN) ---
+        const inputMaquan = row.maquan?.toString().trim();
+        const inputMaquanLower = inputMaquan?.toLowerCase();
 
-                const inputMaphuongLower = inputMaphuong?.toLowerCase();
+        if (inputMaquan) {
+          const isKhuVucValid = VALID_KHUVUC.includes(inputMaquan);
+          const isStationIDValid = validMaphuongSet.has(inputMaquanLower);
 
-                if (!inputMaphuong) {
-                  rowErrors.push('Trống mã phường (Đơn vị lấy mẫu)');
-                } else if (!validMaphuongSet.has(inputMaphuongLower)) {
-                  rowErrors.push(
-                    `Mã phường '${inputMaphuong}' không tồn tại trong hệ thống`
-                  );
-                }
-                // --- XỬ LÝ NGÀY THÁNG ---
-                let displayDate = '';
-                let dbDate = '';
-                if (row.ngaylaymau) {
-                  let d = row.ngaylaymau;
-                  if (d instanceof Date && !isNaN(d)) {
-                    const offset = d.getTimezoneOffset() * 60000;
-                    const localDate = new Date(d.getTime() + offset);
-                    let day = String(localDate.getDate()).padStart(2, '0');
-                    let month = String(localDate.getMonth() + 1).padStart(
-                      2,
-                      '0'
-                    );
-                    let year = localDate.getFullYear();
-                    displayDate = `${day}-${month}-${year}`;
-                    dbDate = `${year}-${month}-${day}`;
-                  } else if (typeof d === 'string') {
-                    const parts = d.trim().split(/[-/]/);
-                    if (parts.length === 3) {
-                      displayDate = `${parts[0].padStart(
-                        2,
-                        '0'
-                      )}-${parts[1].padStart(2, '0')}-${parts[2]}`;
-                      dbDate = `${parts[2]}-${parts[1].padStart(
-                        2,
-                        '0'
-                      )}-${parts[0].padStart(2, '0')}`;
-                    }
-                  }
-                }
-                if (!dbDate) rowErrors.push('Ngày sai định dạng (dd-mm-yyyy)');
-                // --- ĐỐI SOÁT TRÙNG MÃ MẪU ---
-                const sampleCode = row.mamau?.toString().trim();
-                if (!sampleCode) {
-                  rowErrors.push('Thiếu mã mẫu (mamau)');
-                } else if (usedSampleCodes.has(sampleCode)) {
-                  isDuplicate = true;
-                }
-                const isValid = rowErrors.length === 0;
-                if (isValid) {
-                  validCount++;
-                  if (isDuplicate) duplicateCount++;
-                  // Ánh xạ chuẩn để nạp vào Database
-                  let cleanData = {
-                    ...row,
-                  };
-                  cleanData.sample_code = sampleCode;
-                  cleanData.maphuong_temp = inputMaphuong;
-                  cleanData.sampling_date = dbDate;
-                  cleanData.lat = parseFloat(row.lat);
-                  cleanData.lng = parseFloat(row.lng);
-                  delete cleanData.mamau; // Xóa cột cũ của Excel
-                  delete cleanData.maphuong;
-                  delete cleanData.ngaylaymau;
-                  delete cleanData.maquan; // Xóa nếu có
-                  tempValidData.push(cleanData);
-                } else {
-                  invalidCount++;
-                }
-                // --- HIỂN THỊ DỮ LIỆU LÊN BẢNG ---
-                const tr = document.createElement('tr');
-                if (!isValid) tr.className = 'table-danger';
-                else if (isDuplicate) tr.className = 'table-warning';
-                tr.innerHTML = `
+          if (!isKhuVucValid && !isStationIDValid) {
+            rowErrors.push(
+              `Mã quận '${inputMaquan}' không hợp lệ. Phải là mã khu vực (KHUVUC1/2/3) hoặc mã định danh Trạm/CSCCN.`
+            );
+          }
+        }
+
+        // --- ĐỐI SOÁT MÃ PHƯỜNG (MAPHUONG_TEMP) ---
+        const inputMaphuong = (
+          row.maphuong ||
+          row['Đơn vị/CSCCN'] ||
+          row.maphuong_excel ||
+          row.maphuong_temp
+        )?.toString().trim();
+
+        const inputMaphuongLower = inputMaphuong?.toLowerCase();
+
+        if (!inputMaphuong) {
+          rowErrors.push('Trống mã phường (Đơn vị lấy mẫu)');
+        } else if (!validMaphuongSet.has(inputMaphuongLower)) {
+          rowErrors.push(
+            `Mã phường '${inputMaphuong}' không tồn tại trong hệ thống`
+          );
+        }
+        
+        // --- XỬ LÝ NGÀY THÁNG ---
+        let displayDate = '';
+        let dbDate = '';
+        if (row.ngaylaymau) {
+          let d = row.ngaylaymau;
+          if (d instanceof Date && !isNaN(d)) {
+            const offset = d.getTimezoneOffset() * 60000;
+            const localDate = new Date(d.getTime() + offset);
+            let day = String(localDate.getDate()).padStart(2, '0');
+            let month = String(localDate.getMonth() + 1).padStart(2, '0');
+            let year = localDate.getFullYear();
+            displayDate = `${day}-${month}-${year}`;
+            dbDate = `${year}-${month}-${day}`;
+          } else if (typeof d === 'string') {
+            const parts = d.trim().split(/[-/]/);
+            if (parts.length === 3) {
+              displayDate = `${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}-${parts[2]}`;
+              dbDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          }
+        }
+        if (!dbDate) rowErrors.push('Ngày sai định dạng (dd-mm-yyyy)');
+        
+        // --- ĐỐI SOÁT TRÙNG DB DỰA TRÊN 3 CỘT (Khớp 100% với Database) ---
+        const sampleCode = row.mamau?.toString().trim();
+        const rowCompositeKey = `${inputMaphuong}_${dbDate}_${sampleCode}`;
+
+        if (!sampleCode) {
+          rowErrors.push('Thiếu mã mẫu (mamau)');
+        } else if (usedCompositeKeys.has(rowCompositeKey)) {
+          isDuplicate = true; // DB đã có dữ liệu này!
+        }
+        
+        const isValid = rowErrors.length === 0;
+        if (isValid) {
+          validCount++;
+          if (isDuplicate) duplicateCount++;
+          
+          let cleanData = { ...row };
+          cleanData.sample_code = sampleCode;
+          cleanData.maphuong_temp = inputMaphuong;
+          cleanData.sampling_date = dbDate;
+          cleanData.lat = parseFloat(row.lat);
+          cleanData.lng = parseFloat(row.lng);
+          delete cleanData.mamau; 
+          delete cleanData.maphuong;
+          delete cleanData.ngaylaymau;
+          delete cleanData.maquan; 
+          
+          tempValidData.push(cleanData);
+        } else {
+          invalidCount++;
+        }
+        
+        // --- HIỂN THỊ DỮ LIỆU LÊN BẢNG ---
+        const tr = document.createElement('tr');
+        if (!isValid) tr.className = 'table-danger';
+        else if (isDuplicate) tr.className = 'table-warning';
+        
+        tr.innerHTML = `
           <td class="text-center"><strong>${sttExcel}</strong></td>
           <td>${inputMaphuong || '---'}</td>
           <td>${row.diachi || '---'}</td>
@@ -5108,7 +5114,7 @@
             ${
               isValid
                 ? isDuplicate
-                  ? '<span class="badge badge-warning">⚠️ Trùng</span>'
+                  ? '<span class="badge badge-warning">⚠️ Đã có trên DB</span>'
                   : '<span class="badge badge-success">✅ OK</span>'
                 : `<div class="text-danger"><strong>❌ Lỗi:</strong><br>${rowErrors.join(
                     '<br>'
@@ -5116,11 +5122,11 @@
             }
           </td>
         `;
-                tbody.appendChild(tr);
-              });
-              // 3. HIỂN THỊ TỔNG KẾT (Quan trọng)
-              // Cập nhật thống kê đẹp mắt
-              summaryDiv.innerHTML = `
+        tbody.appendChild(tr);
+      });
+      
+      // 3. HIỂN THỊ TỔNG KẾT
+      summaryDiv.innerHTML = `
         <div class="import-dashboard shadow-sm">
             <div class="dashboard-item">
                 <div class="dashboard-value text-dark">${jsonData.length}</div>
@@ -5134,7 +5140,7 @@
             </div>
             <div class="dashboard-item">
                 <div class="dashboard-value text-warning">${duplicateCount}</div>
-                <div class="dashboard-label">Trùng</div>
+                <div class="dashboard-label">Trùng (Cần ghi đè)</div>
             </div>
             <div class="dashboard-item">
                 <div class="dashboard-value text-danger">${invalidCount}</div>
@@ -5142,16 +5148,16 @@
             </div>
         </div>
       `;
-              document.getElementById('btn-final-import').disabled =
-                validCount === 0;
-              input.value = ''; // Reset input file để có thể chọn lại cùng 1 file
-            } catch (err) {
-              console.error('Lỗi previewExcel:', err);
-              showToast('error', 'Không thể đọc dữ liệu: ' + err.message);
-            }
-          };
-          reader.readAsArrayBuffer(file);
-        }
+      
+      document.getElementById('btn-final-import').disabled = validCount === 0;
+      input.value = ''; 
+    } catch (err) {
+      console.error('Lỗi previewExcel:', err);
+      showToast('error', 'Không thể đọc dữ liệu: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
         // EXCEUTE WRITING EXCEL TO DATABASE
 async function executeImport() {
   if (tempValidData.length === 0) return;
