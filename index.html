@@ -5152,72 +5152,77 @@
           };
           reader.readAsArrayBuffer(file);
         }
-        //EXCEUTE WRITING EXCEL TO DATABASE
-        async function executeImport() {
-          if (tempValidData.length === 0) return;
+        // EXCEUTE WRITING EXCEL TO DATABASE
+async function executeImport() {
+  if (tempValidData.length === 0) return;
 
-          const btn = document.getElementById('btn-final-import');
-          const isOverwrite =
-            document.getElementById('overwrite-checkbox').checked;
+  const btn = document.getElementById('btn-final-import');
+  const isOverwrite = document.getElementById('overwrite-checkbox').checked;
 
-          btn.disabled = true;
-          btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
 
-          try {
-            // --- BƯỚC QUAN TRỌNG: Lọc trùng ngay trong mảng trước khi gửi đi ---
-            // Logic: Giữ lại dòng cuối cùng nếu có mã mẫu trùng nhau trong file
-            const uniqueData = Array.from(
-              new Map(
-                tempValidData.map((item) => [item.sample_code, item])
-              ).values()
-            );
+  try {
+    // --- BƯỚC 1: Lọc trùng nội bộ file dựa trên 3 CỘT chuẩn ---
+    // Khóa gộp (Composite Key) để kiểm tra trùng: maphuong + ngay + mamau
+    const uniqueData = Array.from(
+      new Map(
+        tempValidData.map((item) => [
+          `${item.maphuong_temp}_${item.sampling_date}_${item.sample_code}`, 
+          item
+        ])
+      ).values()
+    );
 
-            console.log(
-              `Đang nạp: ${uniqueData.length} dòng (Đã lọc bỏ trùng lặp nội bộ)`
-            );
+    console.log(
+      `Đang nạp: ${uniqueData.length} dòng (Đã lọc bỏ trùng lặp nội bộ dựa trên 3 cột định danh)`
+    );
 
-            let result;
-            if (isOverwrite) {
-              // Dùng upsert nếu người dùng đồng ý ghi đè
-              result = await supabaseClient
-                .from('water_reports')
-                .upsert(uniqueData, {
-                  onConflict: 'sample_code',
-                });
-            } else {
-              // Dùng insert nếu không ghi đè (sẽ báo lỗi nếu mã mẫu đã tồn tại trong DB)
-              result = await supabaseClient
-                .from('water_reports')
-                .insert(uniqueData);
-            }
+    let result;
+    if (isOverwrite) {
+      // --- BƯỚC 2: Dùng upsert với onConflict khớp 100% DB ---
+      result = await supabaseClient
+        .from('water_reports')
+        .upsert(uniqueData, {
+          onConflict: 'maphuong_temp, sampling_date, sample_code', // Sửa lại đúng 3 cột
+        });
+    } else {
+      // Dùng insert nếu không ghi đè
+      result = await supabaseClient
+        .from('water_reports')
+        .insert(uniqueData);
+    }
 
-            if (result.error) throw result.error;
+    if (result.error) throw result.error;
 
-            showToast(
-              'success',
-              `Thành công! Đã nạp ${uniqueData.length} mẫu vào hệ thống.`
-            );
-            closeImportModal();
-            if (typeof init === 'function') init();
-          } catch (err) {
-            console.error('Lỗi insert/upsert:', err);
-            // Hiển thị thông báo lỗi thân thiện hơn
-            let msg = err.message;
-            if (err.code === '23505')
-              msg =
-                "Mã mẫu đã tồn tại trong hệ thống. Vui lòng chọn 'Ghi đè' để cập nhật.";
-            if (err.code === '21000')
-              msg =
-                'Có dữ liệu trùng lặp trong file. Hệ thống đã tự động lọc nhưng vẫn gặp lỗi, vui lòng kiểm tra lại file Excel.';
+    // Lưu ý: Thông báo này chỉ mang tính chất báo "Đã quét và xử lý thành công X dòng từ file Excel".
+    // Việc ghi đè hay thêm mới đã được DB tự động làm ngầm.
+    showToast(
+      'success',
+      `Thành công! Đã quét và xử lý ${uniqueData.length} mẫu vào hệ thống.`
+    );
+    
+    closeImportModal();
+    if (typeof init === 'function') init();
+    
+  } catch (err) {
+    console.error('Lỗi insert/upsert:', err);
+    
+    let msg = err.message;
+    // Bắt lỗi khi không tick "Ghi đè" nhưng dữ liệu lại bị trùng
+    if (err.code === '23505') {
+      msg = "Phát hiện mẫu đã tồn tại trong hệ thống (trùng Phường, Ngày và Mã mẫu). Vui lòng chọn 'Đồng ý ghi đè' để cập nhật.";
+    }
+    if (err.code === '21000') {
+      msg = 'Có lỗi cấu trúc dữ liệu, vui lòng kiểm tra lại file Excel.';
+    }
 
-            showToast('error', 'Lỗi hệ thống: ' + msg);
-          } finally {
-            btn.disabled = false;
-            btn.innerHTML =
-              '<i class="fas fa-cloud-upload-alt"></i> Xác nhận nhập vào Database';
-          }
-        }
+    showToast('error', 'Lỗi: ' + msg);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Xác nhận nhập vào Database';
+  }
+}
         // Hàm hỗ trợ xử lý ngày tháng Excel (vẫn giữ lại từ bước trước vì rất quan trọng)
         function formatExcelDate(serial) {
           if (!serial) return null;
