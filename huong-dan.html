@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hướng dẫn sử dụng - HCDC WebGIS</title>
+  <style>
+    :root { --teal:#008b99; --teal-d:#006d78; --orange:#f26522; --bg:#f4f7f6; --ink:#1f2d2f; --line:#d9e3e3; --card:#fff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    header { background:var(--teal); color:#fff; padding:12px 16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; position:sticky; top:0; z-index:5; }
+    header h1 { font-size:1.05rem; margin:0; flex:1 1 220px; }
+    header a, header button { color:#fff; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); padding:6px 12px; border-radius:6px; text-decoration:none; cursor:pointer; font:inherit; font-size:.9rem; }
+    header a:hover, header button:hover { background:rgba(255,255,255,.28); }
+    nav.tabs { display:flex; gap:6px; padding:10px 16px 0; background:var(--card); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+    nav.tabs button { border:1px solid var(--line); border-bottom:none; background:#eef4f4; padding:8px 14px; border-radius:8px 8px 0 0; cursor:pointer; font:inherit; font-weight:600; color:var(--teal-d); }
+    nav.tabs button[aria-selected="true"] { background:var(--card); color:var(--orange); border-color:var(--orange); }
+    .layout { display:grid; grid-template-columns: 260px 1fr; gap:16px; max-width:1200px; margin:0 auto; padding:16px; }
+    aside { position:sticky; top:70px; align-self:start; max-height:calc(100vh - 90px); overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; font-size:.88rem; }
+    aside h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; color:#6b7f82; margin:0 0 8px; }
+    aside a { display:block; padding:3px 0; color:var(--teal-d); text-decoration:none; }
+    aside a.l3 { padding-left:14px; color:#4d6366; font-size:.84rem; }
+    aside a:hover { color:var(--orange); }
+    main { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px 26px; min-width:0; }
+    main h1 { color:var(--teal-d); border-bottom:3px solid var(--orange); padding-bottom:6px; font-size:1.5rem; }
+    main h2 { color:var(--teal-d); margin-top:1.8em; border-bottom:1px solid var(--line); padding-bottom:4px; }
+    main h3 { color:#33545a; margin-top:1.4em; }
+    main h2[id], main h3[id] { scroll-margin-top:70px; }
+    main blockquote { margin:12px 0; padding:8px 14px; background:#fff6ee; border-left:4px solid var(--orange); border-radius:4px; }
+    main table { border-collapse:collapse; display:block; overflow-x:auto; max-width:100%; margin:12px 0; }
+    main th, main td { border:1px solid var(--line); padding:6px 10px; vertical-align:top; }
+    main th { background:#e8f3f4; text-align:left; }
+    main code { background:#eef4f4; padding:1px 5px; border-radius:4px; font-size:.9em; }
+    main pre { background:#13292d; color:#e7f5f6; padding:12px 14px; border-radius:8px; overflow-x:auto; }
+    main pre code { background:none; color:inherit; padding:0; }
+    main a { color:var(--teal-d); }
+    main input[type=checkbox] { margin-right:6px; }
+    #state { padding:30px; text-align:center; color:#6b7f82; }
+    @media (max-width:860px){ .layout{grid-template-columns:1fr;} aside{position:static;max-height:none;} main{padding:14px 16px;} }
+    @media print { header, nav.tabs, aside { display:none; } .layout{display:block;padding:0;} main{border:none;} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📘 Hướng dẫn sử dụng HCDC WebGIS</h1>
+    <button type="button" id="btn-print">In / Lưu PDF</button>
+    <a href="index.html">← Quay lại bản đồ</a>
+  </header>
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" id="tab-use" aria-selected="true" data-doc="HUONG_DAN_SU_DUNG.md">Sử dụng hằng ngày</button>
+    <button type="button" role="tab" id="tab-research" aria-selected="false" data-doc="HUONG_DAN_NGHIEN_CUU.md">Nghiên cứu khoa học</button>
+  </nav>
+  <div class="layout">
+    <aside><h2>Mục lục</h2><div id="toc"></div></aside>
+    <main id="doc"><div id="state">Đang tải hướng dẫn...</div></main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script>
+    const docEl = document.getElementById('doc');
+    const tocEl = document.getElementById('toc');
+    const tabs = [...document.querySelectorAll('nav.tabs button')];
+    const cache = {};
+
+    function slug(t, i) {
+      return 'm' + i + '-' + t.toLowerCase().replace(/[^a-z0-9À-ỹ]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    }
+
+    async function show(file, hash) {
+      docEl.innerHTML = '<div id="state">Đang tải hướng dẫn...</div>';
+      tocEl.innerHTML = '';
+      try {
+        if (!cache[file]) {
+          const res = await fetch(file, { cache: 'no-cache' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          cache[file] = await res.text();
+        }
+        if (typeof marked === 'undefined') throw new Error('Không tải được bộ hiển thị Markdown (kiểm tra mạng).');
+        docEl.innerHTML = marked.parse(cache[file], { gfm: true });
+        // liên kết sang tài liệu còn lại: chuyển tab thay vì mở file thô
+        docEl.querySelectorAll('a[href$=".md"]').forEach((a) => {
+          const t = tabs.find((b) => a.getAttribute('href').endsWith(b.dataset.doc));
+          if (t) a.addEventListener('click', (e) => { e.preventDefault(); select(t); });
+        });
+        docEl.querySelectorAll('input[type=checkbox]').forEach((c) => (c.disabled = false));
+        let i = 0;
+        docEl.querySelectorAll('h2, h3').forEach((h) => {
+          h.id = slug(h.textContent, i++);
+          const a = document.createElement('a');
+          a.href = '#' + h.id; a.textContent = h.textContent;
+          if (h.tagName === 'H3') a.className = 'l3';
+          tocEl.appendChild(a);
+        });
+        if (hash) { const el = document.getElementById(hash); if (el) el.scrollIntoView(); }
+        else window.scrollTo(0, 0);
+      } catch (e) {
+        docEl.innerHTML = '<div id="state">⚠️ Không tải được hướng dẫn: ' + e.message + '</div>';
+      }
+    }
+
+    function select(tab, hash) {
+      tabs.forEach((b) => b.setAttribute('aria-selected', String(b === tab)));
+      history.replaceState(null, '', '#' + (tab.id === 'tab-research' ? 'nghien-cuu' : 'su-dung'));
+      show(tab.dataset.doc, hash);
+    }
+    tabs.forEach((b) => b.addEventListener('click', () => select(b)));
+    document.getElementById('btn-print').addEventListener('click', () => window.print());
+    select(location.hash === '#nghien-cuu' ? tabs[1] : tabs[0]);
+  </script>
+</body>
+</html>

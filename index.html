@@ -48,7 +48,7 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
     />
-    <link rel="stylesheet" href="style.css?v=20261112c" />
+    <link rel="stylesheet" href="style.css?v=20261112d" />
   </head>
 
   <body>
@@ -356,6 +356,13 @@
             </button>
             <button class="btn-stats logout-btn" onclick="handleExport()">
               <i class="fa-solid fa-file-export"></i> REPORT
+            </button>
+
+            <button
+              class="btn-stats logout-btn"
+              onclick="window.open('huong-dan.html', '_blank'); return false;"
+            >
+              <i class="fa-solid fa-book-open"></i> GUIDE
             </button>
 
             <button class="btn-stats logout-btn" onclick="handleLogout()">
@@ -940,10 +947,10 @@
       />
 
       <!-- MODULE 2: lõi tính toán AHP dùng chung (đã kiểm định qua test/ahp_test.js) -->
-      <script src="ahp-core.js?v=20261112c"></script>
+      <script src="ahp-core.js?v=20261112d"></script>
       <!-- MODULE 3: lõi gộp mẫu->điểm + chấm điểm nguy cơ (đã kiểm định qua test/scoring_test.js) -->
-      <script src="scoring-core.js?v=20261112c"></script>
-      <script src="app.js?v=20261112c"></script>
+      <script src="scoring-core.js?v=20261112d"></script>
+      <script src="app.js?v=20261112d"></script>
 
       <!-- Modal Nạp Dữ Liệu -->
       <div id="import-modal" class="custom-modal" style="display: none">
@@ -1132,6 +1139,7 @@
           </div>
 
           <div id="pv-content" style="display: none">
+            <div id="pv-warn" class="text-center" style="font-size:0.85rem;margin-bottom:8px"></div>
             <div class="pv-period-box text-center mb-3">
               <span class="badge badge-info" style="font-size: 1rem">
                 Giai đoạn: <span id="pv-period"></span>

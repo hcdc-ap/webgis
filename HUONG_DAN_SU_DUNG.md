@@ -49,6 +49,24 @@ Bấm **Time Series** (dưới thanh trượt thời gian) để phát lại di�
 - **Xuất dữ liệu** (bảng dưới bản đồ): tải danh sách mẫu đang lọc dưới dạng file CSV (mở được bằng Excel).
 - **In bản đồ**: dùng nút máy in ở góc trên trái bản đồ (Browser Print).
 
+## 6A. Báo cáo định kỳ (nút REPORT)
+
+Nút **REPORT** nằm cùng khu với **PASSWORD**, **GUIDE** và **LOGOUT** (đầu thanh bên). Nút **GUIDE** mở trực tiếp bộ hướng dẫn này trong tab mới.
+
+1. Chọn **khoảng thời gian** của kỳ báo cáo bằng thanh trượt hoặc ô *Từ ngày – Đến ngày*.
+2. Bấm **REPORT**. Cửa sổ **Xem trước báo cáo** hiện:
+   - **A. Tình hình chung**: số đơn vị phụ trách, tổng công suất, tổng số dân.
+   - **B. Nội kiểm đơn vị**: tổng mẫu, mẫu đạt, mẫu không đạt, thông số không đạt.
+   - **C. Ngoại kiểm** (theo mẫu chọn): *Mẫu 03 HCDC* hoặc *Mẫu 04 TYT (tuyến cơ sở)*.
+3. Dòng đầu cửa sổ cho biết **tổng mẫu trong kỳ = nội kiểm + ngoại kiểm** để bạn đối chiếu. Nếu có mẫu có đơn vị lấy mẫu không nằm trong danh mục, hệ thống cảnh báo màu đỏ.
+4. Chọn loại biểu mẫu ở chân cửa sổ rồi bấm **XUẤT GOOGLE DOCS** để tạo văn bản; bấm **MỞ BÁO CÁO** để mở file vừa tạo.
+
+Quy tắc tính (cần biết khi dùng số liệu):
+- Báo cáo **chỉ phụ thuộc khoảng thời gian**; các bộ lọc khác (đạt/không đạt, thông số, đơn vị) **không** làm đổi số liệu báo cáo.
+- Mẫu **nội kiểm** là mẫu do chính cơ sở cấp nước lấy; **ngoại kiểm** là mẫu do HCDC (`tphcm`, `binhduong`, `brvt`, `hcdc`) hoặc phường/xã lấy. Hệ thống phân loại theo đơn vị lấy mẫu trong danh mục đơn vị.
+- Kết luận **đạt/không đạt** lấy theo cột đánh giá của hệ thống (giống bản đồ và Dashboard).
+- **Số đơn vị ngoại kiểm thực tế** hiện hiển thị "chưa xác định" vì dữ liệu mẫu ngoại kiểm chưa gắn với cơ sở cấp nước cụ thể.
+
 ## 7. Nhập liệu KQXN từ Excel (nhập kết quả xét nghiệm)
 
 Nút **NHẬP LIỆU KQXN** ở thanh bên. Việc ghi dữ liệu vào hệ thống do cơ sở dữ liệu kiểm soát theo vai trò: admin ghi được mọi đơn vị; tài khoản thường chỉ ghi được dữ liệu của đơn vị mình.

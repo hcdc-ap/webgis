@@ -1558,9 +1558,9 @@
             ['vs', 'hl_xn', 'hl_mt', 'hl_vs'].forEach((k) => {
               if (p[k] === 'K') errs.push(k.toUpperCase());
             });
-            csv += `${p.sampling_date},${p.csccn_name},${
-              p.danh_gia_tu_dong
-            },${errs.join('|')}\n`;
+            const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            const d = p.sampling_date instanceof Date ? p.sampling_date.toISOString().slice(0, 10) : p.sampling_date;
+            csv += `${d},${q(p.csccn_name)},${q(p.danh_gia_tu_dong)},${q(errs.join('|'))}\n`;
           });
           const blob = new Blob([csv], {
             type: 'text/csv;charset=utf-8;',
@@ -5227,7 +5227,7 @@ async function executeImport() {
           if (params.points.length < 10) {
             return Promise.reject(new Error('Cần tối thiểu 10 điểm để chạy kiểm định thống kê ổn định (nhận được ' + params.points.length + ').'));
           }
-          if (!statsWorker) statsWorker = new Worker('stats-worker.js?v=20261112c', { type: 'module' });
+          if (!statsWorker) statsWorker = new Worker('stats-worker.js?v=20261112d', { type: 'module' });
           return new Promise((resolve, reject) => {
             const id = Date.now();
             statsWorker.onmessage = (e) => {
@@ -6894,10 +6894,25 @@ async function executeImport() {
           }
         }
 
-        function aggregateReportData(reports, units) {
+        function aggregateReportData(reports, units, period) {
           const tags = {};
           const now = new Date();
           const cleanStr = (s) => (s ? s.toString().trim().toLowerCase() : '');
+
+          // Dữ liệu mẫu (view_report_results) KHÔNG có cột `mode`: nội kiểm/ngoại kiểm được suy ra từ
+          // đơn vị lấy mẫu (maphuong_temp) tra trong bảng units.mode. Nếu thiếu bước này mọi số liệu
+          // ngoại kiểm đều = 0.
+          const unitModeMap = new Map(
+            units.map((u) => [cleanStr(u.maphuong), cleanStr(u.mode)])
+          );
+          let unclassified = 0;
+          reports = reports.map((r) => {
+            const m = r.mode ? cleanStr(r.mode) : unitModeMap.get(cleanStr(r.maphuong_temp));
+            if (!m) unclassified++;
+            return { ...r, mode: m || '' };
+          });
+          tags['TONG_MAU_KY'] = reports.length;
+          tags['MAU_CHUA_PHAN_LOAI'] = unclassified;
 
           // --- 1. THÔNG TIN CHUNG ---
           tags['HCDC_BAO_CAO'] =
@@ -6906,9 +6921,18 @@ async function executeImport() {
           tags['NGAY'] = now.getDate();
           tags['THANG'] = now.getMonth() + 1;
           tags['NAM_HT'] = now.getFullYear();
-          tags['QUY_BC'] = now.getMonth() + 1 <= 3 ? 'X' : '....';
-          tags['CB_6T'] = now.getMonth() + 1 <= 6 ? 'X' : '....';
-          tags['CB_1N'] = now.getMonth() + 1 > 6 ? 'X' : '....';
+          // Loại kỳ báo cáo suy ra từ KHOẢNG THỜI GIAN đã chọn (không phải từ ngày hiện tại)
+          const pDays =
+            period && period.start && period.end
+              ? Math.round((period.end - period.start) / 86400000) + 1
+              : null;
+          tags['QUY_BC'] = pDays !== null && pDays <= 100 ? 'X' : '....';
+          tags['CB_6T'] = pDays !== null && pDays > 100 && pDays <= 190 ? 'X' : '....';
+          tags['CB_1N'] = pDays !== null && pDays > 190 ? 'X' : '....';
+          const fmtD = (d) =>
+            `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+          tags['KY_TU'] = period && period.start ? fmtD(period.start) : '';
+          tags['KY_DEN'] = period && period.end ? fmtD(period.end) : '';
 
           // --- 2. ĐỊNH NGHĨA NGƯỠNG (THRESHOLD) ---
           const THRESHOLD = {
@@ -6923,10 +6947,14 @@ async function executeImport() {
             PH_MAX: 8.5,
             CLO_MIN: 0.2,
             CLO_MAX: 1.0,
+            FE: 0.3,
+            MANGAN: 0.1,
+            PS_AERUGINOSA: 0,
+            STAPHYLOCOCCUS_AUREUS: 0,
           };
 
           // --- 3. HÀM HELPER ---
-          const getFailedParams = (r) => {
+          const getNumericFailed = (r) => {
             let failedList = [];
             const check = (val, field, label) => {
               const v = parseFloat(val);
@@ -6937,7 +6965,9 @@ async function executeImport() {
               else if (field === 'clo_du')
                 isFail = v < THRESHOLD.CLO_MIN || v > THRESHOLD.CLO_MAX;
               else if (field === 'asen') isFail = v > THRESHOLD.ARSENIC;
-              else if (['coli_tong', 'ecoli', 'muivi'].includes(field))
+              else if (
+                ['coli_tong', 'ecoli', 'muivi', 'ps_aeruginosa', 'staphylococcus_aureus'].includes(field)
+              )
                 isFail = v > 0;
               else if (THRESHOLD[field.toUpperCase()] !== undefined)
                 isFail = v > THRESHOLD[field.toUpperCase()];
@@ -6955,10 +6985,34 @@ async function executeImport() {
             check(r.pec, 'pec', 'Permanganat');
             check(r.ph, 'ph', 'pH');
             check(r.clo_du, 'clo_du', 'Clo dư');
+            check(r.fe, 'fe', 'Sắt');
+            check(r.mangan, 'mangan', 'Mangan');
+            check(r.ps_aeruginosa, 'ps_aeruginosa', 'Trực khuẩn mủ xanh');
+            check(r.staphylococcus_aureus, 'staphylococcus_aureus', 'Tụ cầu vàng');
             return failedList;
           };
 
-          const isSampleFailed = (r) => getFailedParams(r).length > 0;
+          // KẾT LUẬN ĐẠT/KHÔNG ĐẠT lấy từ `danh_gia_tu_dong` — cùng nguồn với bản đồ, Dashboard
+          // và Thống kê (kết luận còn dựa vào các cột Đ/K nhập tại hiện trường/phòng XN, không chỉ
+          // so ngưỡng số). Chỉ khi thiếu cột này mới tự so ngưỡng.
+          const isSampleFailed = (r) => {
+            const dg = (r.danh_gia_tu_dong ?? '').toString().trim();
+            return dg ? dg.toLowerCase() !== 'đạt' : getNumericFailed(r).length > 0;
+          };
+
+          // Danh sách thông số không đạt: chỉ xét mẫu KHÔNG ĐẠT; nếu không thông số số nào vượt
+          // ngưỡng thì nêu theo nhóm bị đánh dấu K (Vi sinh / Hóa lý / Hiện trường).
+          const getFailedParams = (r) => {
+            if (!isSampleFailed(r)) return [];
+            const list = getNumericFailed(r);
+            if (list.length === 0) {
+              if (r.vs === 'K') list.push('Vi sinh');
+              if (r.hl_xn === 'K') list.push('Hóa lý (phòng XN)');
+              if (r.hl_mt === 'K') list.push('Hóa lý (hiện trường)');
+              if (list.length === 0) list.push('Không đạt (chưa rõ thông số)');
+            }
+            return list;
+          };
 
           const filterByCap = (arr, min, max) =>
             arr.filter((u) => {
@@ -7021,7 +7075,7 @@ async function executeImport() {
             tags[`NK_${prefix}_MAU_DAT`] = groupReports.length - failed.length;
 
             const countKDAT = (field, type) => {
-              return groupReports.filter((r) => {
+              return groupReports.filter(isSampleFailed).filter((r) => {
                 const v = parseFloat(r[field]);
                 if (isNaN(v)) return false;
                 if (type === 'ZERO') return v > 0;
@@ -7063,7 +7117,7 @@ async function executeImport() {
           tags['INT_MAU_TONG'] = internalReports.length;
 
           const countIntKDAT = (field, type) => {
-            return internalReports.filter((r) => {
+            return internalReports.filter(isSampleFailed).filter((r) => {
               const v = parseFloat(r[field]);
               if (isNaN(v)) return false;
               if (type === 'ZERO') return v > 0;
@@ -7146,13 +7200,13 @@ async function executeImport() {
             (sum, u) => sum + (Number(u.capacity) || 0),
             0
           );
-          tags['TYLE_DAN'] = ((tags['TONG_DAN'] / 9400000) * 100).toFixed(2);
           // 1. Tổng dân số của TOÀN BỘ các trạm trong hệ thống (Denominator)
           const tongDanHeThong = allCSCCN.reduce(
             (sum, u) => sum + (Number(u.total_households) || 0),
             0
           );
           tags['TONG_DAN'] = tongDanHeThong;
+          tags['TYLE_DAN'] = ((tongDanHeThong / 9400000) * 100).toFixed(2);
 
           // 2. Tính tỷ lệ dân số PX phụ trách so với Tổng dân hệ thống
           // Thêm "|| 1" để tránh lỗi chia cho 0 khiến báo cáo hiện "NaN"
@@ -7196,15 +7250,23 @@ async function executeImport() {
           // 3. TÍNH TOÁN DỮ LIỆU (Chạy 1 lần duy nhất khi mở Modal)
           setTimeout(() => {
             try {
-              const dataToProcess =
-                typeof filteredData !== 'undefined' ? filteredData : [];
+              // Báo cáo tính theo KHOẢNG THỜI GIAN đã chọn trên thanh trượt, KHÔNG áp dụng các bộ lọc
+              // đạt/không đạt, thông số hay đơn vị (nếu áp dụng sẽ làm sai tổng số mẫu và tỷ lệ).
+              const slider = document.getElementById('time-slider');
+              let periodStart = null,
+                periodEnd = null;
+              if (slider && slider.noUiSlider) {
+                [periodStart, periodEnd] = slider.noUiSlider.get().map((v) => parseInt(v));
+              }
+              const dataToProcess = (allData || []).filter((d) => {
+                const t = d.sampling_date.getTime();
+                return periodStart === null || (t >= periodStart && t <= periodEnd);
+              });
 
-              // Gọi hàm aggregateReportData thần thánh của anh em mình
-              // Lưu vào biến toàn cục để dùng khi đổi Dropdown
-              currentReportTags = aggregateReportData(
-                dataToProcess,
-                allUnits || []
-              );
+              currentReportTags = aggregateReportData(dataToProcess, allUnits || [], {
+                start: periodStart !== null ? new Date(periodStart) : null,
+                end: periodEnd !== null ? new Date(periodEnd) : null,
+              });
 
               console.log('✅ Tags đã sẵn sàng:', currentReportTags);
 
@@ -7261,6 +7323,20 @@ async function executeImport() {
             setVal('pv-b2', tags['NK_PX_MAU_DAT']);
             setVal('pv-b3', tags['NK_PX_MAU_KDAT']);
             setVal('pv-b-errors', tags['NK_PX_MAU_THONGSOLOI'] || 'Không có');
+          }
+
+          // Số đơn vị ngoại kiểm thực tế: dữ liệu mẫu ngoại kiểm chưa gắn với CSCCN cụ thể nên chưa tính được
+          const ktEl = document.getElementById('pv-kt');
+          if (ktEl && !Number(ktEl.innerText)) ktEl.innerText = '— (chưa xác định)';
+
+          const warnEl = document.getElementById('pv-warn');
+          if (warnEl) {
+            const w = [];
+            w.push(`Tổng mẫu trong kỳ: <b>${tags['TONG_MAU_KY'] || 0}</b> (nội kiểm ${tags['INT_MAU_TONG'] || 0} + ngoại kiểm ${tags['TOTAL_MAU_TONG'] || 0}).`);
+            if (tags['MAU_CHUA_PHAN_LOAI'] > 0)
+              w.push(`<span style="color:#c0392b">⚠️ ${tags['MAU_CHUA_PHAN_LOAI']} mẫu có đơn vị lấy mẫu không có trong danh mục đơn vị nên không được tính vào nội/ngoại kiểm.</span>`);
+            w.push('Báo cáo tính theo khoảng thời gian đã chọn, không áp dụng các bộ lọc khác.');
+            warnEl.innerHTML = w.join('<br>');
           }
 
           // Các thẻ chung của hệ thống
