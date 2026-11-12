@@ -48,7 +48,7 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
     />
-    <link rel="stylesheet" href="style.css?v=20261112d" />
+    <link rel="stylesheet" href="style.css?v=20261112e" />
   </head>
 
   <body>
@@ -947,10 +947,10 @@
       />
 
       <!-- MODULE 2: lõi tính toán AHP dùng chung (đã kiểm định qua test/ahp_test.js) -->
-      <script src="ahp-core.js?v=20261112d"></script>
+      <script src="ahp-core.js?v=20261112e"></script>
       <!-- MODULE 3: lõi gộp mẫu->điểm + chấm điểm nguy cơ (đã kiểm định qua test/scoring_test.js) -->
-      <script src="scoring-core.js?v=20261112d"></script>
-      <script src="app.js?v=20261112d"></script>
+      <script src="scoring-core.js?v=20261112e"></script>
+      <script src="app.js?v=20261112e"></script>
 
       <!-- Modal Nạp Dữ Liệu -->
       <div id="import-modal" class="custom-modal" style="display: none">
@@ -1159,10 +1159,16 @@
                     <span>Số đơn vị thực tế KT:</span> <b id="pv-kt"></b>
                   </div>
                   <div class="pv-item">
-                    <span>Tổng công suất:</span> <b id="pv-cs"></b> m³/nđ
+                    <span>Tổng công suất (toàn danh mục):</span>
+                    <span><b id="pv-cs"></b> m³/nđ</span>
                   </div>
                   <div class="pv-item">
-                    <span>Tổng số dân:</span> <b id="pv-dan"></b> người
+                    <span>Tổng số hộ (toàn danh mục):</span>
+                    <span><b id="pv-dan"></b> hộ</span>
+                  </div>
+                  <div class="pv-item">
+                    <span>Cơ sở nội kiểm có lấy mẫu trong kỳ:</span>
+                    <span><b id="pv-active"></b></span>
                   </div>
                 </div>
               </div>

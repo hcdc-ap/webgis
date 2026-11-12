@@ -5227,7 +5227,7 @@ async function executeImport() {
           if (params.points.length < 10) {
             return Promise.reject(new Error('Cần tối thiểu 10 điểm để chạy kiểm định thống kê ổn định (nhận được ' + params.points.length + ').'));
           }
-          if (!statsWorker) statsWorker = new Worker('stats-worker.js?v=20261112d', { type: 'module' });
+          if (!statsWorker) statsWorker = new Worker('stats-worker.js?v=20261112e', { type: 'module' });
           return new Promise((resolve, reject) => {
             const id = Date.now();
             statsWorker.onmessage = (e) => {
@@ -7338,6 +7338,13 @@ async function executeImport() {
             w.push('Báo cáo tính theo khoảng thời gian đã chọn, không áp dụng các bộ lọc khác.');
             warnEl.innerHTML = w.join('<br>');
           }
+
+          // Tô xanh khi không có thông số không đạt (đỏ chỉ khi thực sự có lỗi)
+          ['pv-c-errors', 'pv-b-errors'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('ok-text', el.innerText.trim() === 'Không có');
+          });
+          setVal('pv-active', `${tags['TONG_DV_KT'] || 0} / ${tags['TONG_DV_PT'] || 0}`);
 
           // Các thẻ chung của hệ thống
           setVal('pv-cs', (tags['TONG_CS_TT'] || 0).toLocaleString());

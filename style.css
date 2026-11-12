@@ -2374,3 +2374,15 @@
           opacity: 1;
         }
       }
+
+      /* Cửa sổ xem trước báo cáo */
+      .error-text.ok-text { color: #28a745; }
+      .hcdc-modal-footer .btn-secondary {
+        background: #5f6b6d;
+        color: #fff;
+        margin: 0 10px 0 0;
+        padding: 8px 20px;
+        font-weight: 600;
+      }
+      .hcdc-modal-footer .btn-secondary:hover { background: #46514f; }
+      .pv-item > span:last-child { text-align: right; }

@@ -55,10 +55,10 @@ Nút **REPORT** nằm cùng khu với **PASSWORD**, **GUIDE** và **LOGOUT** (đ
 
 1. Chọn **khoảng thời gian** của kỳ báo cáo bằng thanh trượt hoặc ô *Từ ngày – Đến ngày*.
 2. Bấm **REPORT**. Cửa sổ **Xem trước báo cáo** hiện:
-   - **A. Tình hình chung**: số đơn vị phụ trách, tổng công suất, tổng số dân.
+   - **A. Tình hình chung**: số đơn vị phụ trách, tổng công suất và tổng số hộ (tính trên **toàn danh mục** cơ sở nội kiểm, không đổi theo kỳ), số cơ sở nội kiểm có lấy mẫu trong kỳ (so với tổng số cơ sở).
    - **B. Nội kiểm đơn vị**: tổng mẫu, mẫu đạt, mẫu không đạt, thông số không đạt.
    - **C. Ngoại kiểm** (theo mẫu chọn): *Mẫu 03 HCDC* hoặc *Mẫu 04 TYT (tuyến cơ sở)*.
-3. Dòng đầu cửa sổ cho biết **tổng mẫu trong kỳ = nội kiểm + ngoại kiểm** để bạn đối chiếu. Nếu có mẫu có đơn vị lấy mẫu không nằm trong danh mục, hệ thống cảnh báo màu đỏ.
+3. Mục "Thông số không đạt" hiện màu xanh khi không có thông số nào vượt ngưỡng, màu đỏ khi có. Dòng đầu cửa sổ cho biết **tổng mẫu trong kỳ = nội kiểm + ngoại kiểm** để bạn đối chiếu. Nếu có mẫu có đơn vị lấy mẫu không nằm trong danh mục, hệ thống cảnh báo màu đỏ.
 4. Chọn loại biểu mẫu ở chân cửa sổ rồi bấm **XUẤT GOOGLE DOCS** để tạo văn bản; bấm **MỞ BÁO CÁO** để mở file vừa tạo.
 
 Quy tắc tính (cần biết khi dùng số liệu):
