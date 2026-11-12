@@ -1,5 +1,4 @@
-// Service Worker tối giản (đủ điều kiện cài PWA). KHÔNG chặn/đổi hướng request nào:
-// trình duyệt tự tải mạng như bình thường -> không còn lỗi "Failed to fetch" khi CDN/mạng chập chờn.
+// Service Worker tối giản (đủ điều kiện cài PWA). Không có fetch handler nên không chặn/đổi hướng request nào
+// và không phát sinh cảnh báo "no-op fetch handler".
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener('fetch', () => {});

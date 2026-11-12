@@ -48,7 +48,7 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
     />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=20261112c" />
   </head>
 
   <body>
@@ -940,10 +940,10 @@
       />
 
       <!-- MODULE 2: lõi tính toán AHP dùng chung (đã kiểm định qua test/ahp_test.js) -->
-      <script src="ahp-core.js"></script>
+      <script src="ahp-core.js?v=20261112c"></script>
       <!-- MODULE 3: lõi gộp mẫu->điểm + chấm điểm nguy cơ (đã kiểm định qua test/scoring_test.js) -->
-      <script src="scoring-core.js"></script>
-      <script src="app.js"></script>
+      <script src="scoring-core.js?v=20261112c"></script>
+      <script src="app.js?v=20261112c"></script>
 
       <!-- Modal Nạp Dữ Liệu -->
       <div id="import-modal" class="custom-modal" style="display: none">
@@ -1687,8 +1687,8 @@
                 <i class="fa-solid fa-circle-info"></i> Bấm "CHẠY KIỂM CHỨNG
                 THỐNG KÊ" để phân tích xem điểm nguy cơ R có phân biệt được
                 điểm đạt/không đạt QCVN không (đơn vị phân tích = ĐIỂM,
-                N≈1.219). Yêu cầu <code>stats_service</code> (FastAPI Python)
-                đang chạy tại <code>127.0.0.1:8000</code>.
+                N≈1.219). Phép tính chạy ngay trong trình duyệt (Python/Pyodide, không cần
+                server); lần chạy đầu cần tải ~60MB nên mất 1–2 phút.
               </p>
             </div>
           </div>

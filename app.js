@@ -5227,7 +5227,7 @@ async function executeImport() {
           if (params.points.length < 10) {
             return Promise.reject(new Error('Cần tối thiểu 10 điểm để chạy kiểm định thống kê ổn định (nhận được ' + params.points.length + ').'));
           }
-          if (!statsWorker) statsWorker = new Worker('stats-worker.js?v=20261112b', { type: 'module' });
+          if (!statsWorker) statsWorker = new Worker('stats-worker.js?v=20261112c', { type: 'module' });
           return new Promise((resolve, reject) => {
             const id = Date.now();
             statsWorker.onmessage = (e) => {
@@ -6015,6 +6015,14 @@ async function executeImport() {
 
             // Chuyển danh sách địa bàn thành chữ thường để so khớp chính xác
             const rawNames = insight.affected_wards || [];
+            if (rawNames.length === 0) {
+              // Không phải lỗi dữ liệu: nhận định AI của ngày này không có địa bàn nào bị cảnh báo
+              // (thường do kỳ giám sát không có mẫu không đạt) nên không có gì để tô lên bản đồ.
+              return showToast(
+                'info',
+                `Nhận định AI ngày ${insight.prediction_date} không ghi nhận địa bàn nguy cơ nào cần cảnh báo.`
+              );
+            }
             const cleanNames = rawNames.map((n) =>
               String(n).toLowerCase().trim()
             );
@@ -6183,7 +6191,8 @@ async function executeImport() {
               // Chỉ báo lỗi khi AI báo tên hoàn toàn "lạ" không có trên bản đồ
               showToast(
                 'error',
-                'Dữ liệu AI không khớp với ranh giới hành chính hiện tại.'
+                'Tên địa bàn trong nhận định AI không khớp với ranh giới hành chính hiện tại: ' +
+                  rawNames.slice(0, 5).join(', ')
               );
               console.warn('⚠️ Không tìm thấy khớp cho:', sanitizedAI);
             }
