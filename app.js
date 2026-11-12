@@ -1801,19 +1801,28 @@ async function previewExcel(input) {
       ];
 
       // 1. TẢI DỮ LIỆU ĐỐI SOÁT (Chỉ tải những mã mẫu có trong file Excel)
+      // DB có 2 ràng buộc UNIQUE: (maphuong_temp, sampling_date, sample_code) VÀ sample_code riêng lẻ.
+      // => mã mẫu là khóa thật sự; đối soát theo sample_code. Chia lô để URL không quá dài với file lớn.
+      const fetchExistingReports = async () => {
+        let rows = [];
+        for (let i = 0; i < excelSampleCodes.length; i += 150) {
+          const { data, error } = await supabaseClient
+            .from('water_reports')
+            .select('maphuong_temp, sampling_date, sample_code')
+            .in('sample_code', excelSampleCodes.slice(i, i + 150));
+          if (error) throw error;
+          rows = rows.concat(data || []);
+        }
+        return { data: rows };
+      };
       const [resReports, resUnits] = await Promise.all([
-        supabaseClient
-          .from('water_reports')
-          .select('maphuong_temp, sampling_date, sample_code') // Lấy đủ 3 cột cấu thành Constraint
-          .in('sample_code', excelSampleCodes), // Lọc siêu tốc!
+        fetchExistingReports(),
         supabaseClient.from('units').select('maphuong').range(0, 10000),
       ]);
 
       // --- BƯỚC MỚI: Tạo bộ khóa 3 cột (Composite Key) từ DB trả về ---
-      const usedCompositeKeys = new Set(
-        resReports.data?.map(
-          (d) => `${d.maphuong_temp}_${d.sampling_date}_${d.sample_code}`
-        ) || []
+      const usedSampleCodes = new Set(
+        resReports.data?.map((d) => String(d.sample_code).trim()) || []
       );
 
       const validMaphuongSet = new Set(
@@ -1891,8 +1900,8 @@ async function previewExcel(input) {
 
         if (!sampleCode) {
           rowErrors.push('Thiếu mã mẫu (mamau)');
-        } else if (usedCompositeKeys.has(rowCompositeKey)) {
-          isDuplicate = true; // DB đã có dữ liệu này!
+        } else if (usedSampleCodes.has(sampleCode)) {
+          isDuplicate = true; // Mã mẫu đã có trên DB (khóa UNIQUE)
         }
         
         const isValid = rowErrors.length === 0;
@@ -1994,13 +2003,9 @@ async function executeImport() {
   try {
     // --- BƯỚC 1: Lọc trùng nội bộ file dựa trên 3 CỘT chuẩn ---
     // Khóa gộp (Composite Key) để kiểm tra trùng: maphuong + ngay + mamau
+    // Lọc trùng nội bộ file theo sample_code (khóa UNIQUE thật của DB; dòng sau thắng dòng trước)
     const uniqueData = Array.from(
-      new Map(
-        tempValidData.map((item) => [
-          `${item.maphuong_temp}_${item.sampling_date}_${item.sample_code}`, 
-          item
-        ])
-      ).values()
+      new Map(tempValidData.map((item) => [item.sample_code, item])).values()
     );
 
     console.log(
@@ -2013,7 +2018,7 @@ async function executeImport() {
       result = await supabaseClient
         .from('water_reports')
         .upsert(uniqueData, {
-          onConflict: 'maphuong_temp, sampling_date, sample_code', // Sửa lại đúng 3 cột
+          onConflict: 'sample_code', // sample_code là khóa UNIQUE; ghi đè cả khi đổi phường/ngày
         });
     } else {
       // Dùng insert nếu không ghi đè
@@ -2040,7 +2045,9 @@ async function executeImport() {
     let msg = err.message;
     // Bắt lỗi khi không tick "Ghi đè" nhưng dữ liệu lại bị trùng
     if (err.code === '23505') {
-      msg = "Phát hiện mẫu đã tồn tại trong hệ thống (trùng Phường, Ngày và Mã mẫu). Vui lòng chọn 'Đồng ý ghi đè' để cập nhật.";
+      msg = isOverwrite
+        ? 'Vi phạm ràng buộc duy nhất dù đã chọn ghi đè: ' + (err.details || err.message)
+        : "Phát hiện mã mẫu đã tồn tại trong hệ thống. Vui lòng chọn 'Đồng ý ghi đè' để cập nhật.";
     }
     if (err.code === '21000') {
       msg = 'Có lỗi cấu trúc dữ liệu, vui lòng kiểm tra lại file Excel.';
