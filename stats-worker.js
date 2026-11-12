@@ -1,15 +1,15 @@
 // MODULE 4 chạy NGAY TRONG TRÌNH DUYỆT bằng Pyodide (Python/WASM) — không cần server, chi phí 0đ.
 // Dùng đúng stats_core.py (scipy/statsmodels/sklearn) đã được kiểm định; kết quả đã đối chiếu với
 // bản native (verify_output.json). Lần chạy đầu tải ~60MB (trình duyệt tự cache cho các lần sau).
+import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.mjs';
 const PYODIDE_VERSION = 'v314.0.7';
-importScripts(`https://cdn.jsdelivr.net/pyodide/${PYODIDE_VERSION}/full/pyodide.js`);
 
 let pyReady = null;
 function init() {
   if (!pyReady) {
     pyReady = (async () => {
       postMessage({ type: 'progress', text: 'Đang tải môi trường Python (lần đầu ~1 phút)...' });
-      const py = await loadPyodide();
+      const py = await loadPyodide({ indexURL: `https://cdn.jsdelivr.net/pyodide/${PYODIDE_VERSION}/full/` });
       await py.loadPackage(['numpy', 'pandas', 'scipy', 'statsmodels', 'scikit-learn']);
       const src = await (await fetch('stats_core.py', { cache: 'no-cache' })).text();
       py.FS.writeFile('/home/pyodide/stats_core.py', src);

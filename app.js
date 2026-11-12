@@ -5220,7 +5220,7 @@ async function executeImport() {
           if (params.points.length < 10) {
             return Promise.reject(new Error('Cần tối thiểu 10 điểm để chạy kiểm định thống kê ổn định (nhận được ' + params.points.length + ').'));
           }
-          if (!statsWorker) statsWorker = new Worker('stats-worker.js');
+          if (!statsWorker) statsWorker = new Worker('stats-worker.js', { type: 'module' });
           return new Promise((resolve, reject) => {
             const id = Date.now();
             statsWorker.onmessage = (e) => {
