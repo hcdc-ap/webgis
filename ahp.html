@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KHẢO SÁT AHP - HCDC WebGIS</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body {
+        background: #f4f6f8;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      .ahp-wrap {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 60px;
+      }
+      .ahp-header {
+        background: linear-gradient(135deg, #008b99, #006a75);
+        color: white;
+        padding: 22px 26px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+      }
+      .ahp-header h1 {
+        margin: 0 0 6px;
+        font-size: 1.4rem;
+      }
+      .ahp-header .expert-chip {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.18);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .ahp-guide {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        font-size: 13.5px;
+        color: #444;
+      }
+      .ahp-matrix-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        padding: 20px;
+        margin-bottom: 22px;
+      }
+      .ahp-matrix-card h3 {
+        margin: 0 0 4px;
+        color: #006a75;
+        font-size: 1.05rem;
+      }
+      .ahp-pairs {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .ahp-pair-row {
+        display: grid;
+        grid-template-columns: 1fr 2.2fr 1fr;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        background: #fafbfc;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      .ahp-pair-row .item-label {
+        font-weight: 600;
+        text-align: center;
+      }
+      .ahp-pair-row select {
+        width: 100%;
+        padding: 6px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+      }
+      .ahp-cr-box {
+        margin-top: 14px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 13.5px;
+      }
+      .ahp-cr-ok {
+        background: #eafaf1;
+        color: #1e7e34;
+        border: 1px solid #1e7e34;
+      }
+      .ahp-cr-bad {
+        background: #fdf2f2;
+        color: #c0392b;
+        border: 1px solid #c0392b;
+      }
+      .ahp-single-note {
+        background: #fef9e7;
+        color: #b9770e;
+        border: 1px solid #b9770e;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      .ahp-submit-bar {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        border-top: 1px solid #ddd;
+        padding: 16px 20px;
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .btn-ahp-submit {
+        background: #f26522;
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .btn-ahp-submit:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      #ahp-error-box {
+        display: none;
+        background: #fdf2f2;
+        color: #c0392b;
+        border: 1px solid #c0392b;
+        padding: 14px 18px;
+        border-radius: 10px;
+        margin-bottom: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ahp-wrap">
+      <div class="ahp-header">
+        <h1><i class="fa-solid fa-scale-balanced"></i> KHẢO SÁT SO SÁNH CẶP AHP</h1>
+        <div>Bộ tiêu chí xác định vị trí điểm lấy mẫu giám sát ngoại kiểm</div>
+        <div class="expert-chip" id="expert-chip">
+          <i class="fa-solid fa-user-tie"></i> Chuyên gia: <span id="expert-code">—</span>
+        </div>
+      </div>
+
+      <div id="ahp-error-box"></div>
+
+      <div class="ahp-guide" id="ahp-guide" style="display: none">
+        <b><i class="fa-solid fa-circle-info"></i> Hướng dẫn nhanh (thang Saaty 1-9):</b>
+        1 = quan trọng ngang nhau · 3 = hơn một chút · 5 = hơn nhiều ·
+        7 = rất quan trọng hơn · 9 = vô cùng quan trọng hơn (2,4,6,8 là mức trung gian).
+        Với mỗi cặp, chọn <b>bên quan trọng hơn</b> và <b>mức độ</b>. Hệ thống tự tính
+        Tỷ số nhất quán (CR); nếu CR&gt;0,10 bạn cần điều chỉnh lại trước khi gửi.
+      </div>
+
+      <div id="ahp-matrices-container">
+        <!-- Các ma trận (GROUP, KN, HQ, DBP...) sẽ được sinh động vào đây -->
+      </div>
+
+      <div class="ahp-submit-bar">
+        <div id="ahp-overall-status" style="font-size: 13.5px">
+          Đang tải bộ tiêu chí...
+        </div>
+        <button id="btn-ahp-submit" class="btn-ahp-submit" disabled onclick="submitAhpAll()">
+          <i class="fa-solid fa-paper-plane"></i> GỬI KẾT QUẢ
+        </button>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="ahp-core.js"></script>
+    <script src="ahp.js"></script>
+  </body>
+</html>

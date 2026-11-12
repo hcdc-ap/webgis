@@ -1,9 +1,5 @@
-// Cài đặt Service Worker
-self.addEventListener('install', (e) => {
-  console.log('[Service Worker] Đã cài đặt thành công!');
-});
-
-// Bỏ qua bộ nhớ đệm (Cache) để luôn tải dữ liệu mới nhất từ GitHub
-self.addEventListener('fetch', (e) => {
-  e.respondWith(fetch(e.request));
-});
+// Service Worker tối giản (đủ điều kiện cài PWA). KHÔNG chặn/đổi hướng request nào:
+// trình duyệt tự tải mạng như bình thường -> không còn lỗi "Failed to fetch" khi CDN/mạng chập chờn.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', () => {});
