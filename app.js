@@ -300,9 +300,11 @@
         };
         // --- 2. CẤU HÌNH BẢN ĐỒ NỀN (BASEMAPS) ---
         // 2.1. Định nghĩa các loại bản đồ nền
+        // OSM đã ngừng các subdomain a/b/c (ERR_CONNECTION_REFUSED): chỉ dùng tile.openstreetmap.org
         const streetMap = L.tileLayer(
-          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           {
+            maxZoom: 19,
             attribution: '© OpenStreetMap',
           }
         );
@@ -4201,7 +4203,7 @@ async function executeImport() {
 
             if (!riskMapLeaflet) {
               riskMapLeaflet = L.map('risk-map-container').setView([10.78, 106.7], 11);
-              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap',
               }).addTo(riskMapLeaflet);
             }
@@ -4641,7 +4643,7 @@ async function executeImport() {
             tab1Map = null;
           }
           tab1Map = L.map('tab1-map-container').setView([10.78, 106.7], 10);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap',
           }).addTo(tab1Map);
 
