@@ -1,6 +1,7 @@
       :root {
         --sidebar-width: 300px;
-        --primary: #008b99;
+        /* #007a86 thay cho #008b99: đạt tương phản 4.5:1 với chữ trắng (Lighthouse color-contrast) */
+        --primary: #007a86;
         --danger: #f26522;
         --success: #006a75;
       }
@@ -364,7 +365,8 @@
       }
 
       .btn-stats {
-        background: #f26522;
+        /* cam đậm hơn #f26522 để chữ trắng đạt tương phản 4.5:1 */
+        background: #c94a14;
         width: calc(100% - 30px);
         margin: 15px;
         padding: 10px;
@@ -375,7 +377,7 @@
         font-weight: bold;
       }
       .btn-secondary {
-        background: #f26522;
+        background: #c94a14;
 
         margin: 15px;
         padding: 10px;
@@ -453,7 +455,8 @@
         border-radius: 50%;
       }
 
-      .info.legend h4 {
+      .info.legend h4,
+      .info.legend [role="heading"] {
         margin: 0 0 8px;
         color: #2c3e50;
         font-size: 12px;
@@ -1945,7 +1948,7 @@
       .date-field label {
         font-size: 11px;
         text-transform: uppercase;
-        color: #008b99;
+        color: var(--primary);
         margin-bottom: 3px;
         display: block;
       }

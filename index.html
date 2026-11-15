@@ -13,42 +13,72 @@
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="HCDC WebGIS" />
-    <link
-      rel="apple-touch-icon"
-      href="https://github.com/hcdc-ap/images-host/blob/main/images/hcdclogo.png?raw=true"
+    <meta
+      name="description"
+      content="HCDC-Sentinel WebGIS: hệ thống bản đồ giám sát chất lượng nước sạch của Trung tâm Kiểm soát Bệnh tật TP.HCM."
     />
-    <link
-      rel="icon"
-      href="https://github.com/hcdc-ap/images-host/blob/main/images/hcdclogo.png?raw=true"
-      type="image/png"
-    />
-    <!-- Thư viện chuẩn -->
+    <link rel="apple-touch-icon" href="icons/hcdclogo-192.png" />
+    <link rel="icon" href="icons/hcdclogo-96.png" type="image/png" />
+    <!-- Kết nối sớm tới các máy chủ dùng ngay khi tải trang -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+    <link rel="preconnect" href="https://yjtbvlydphuvuebsyavh.supabase.co" crossorigin />
+    <link rel="dns-prefetch" href="https://a.tile.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://b.tile.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://c.tile.openstreetmap.org" />
+    <!-- Thư viện chuẩn: chỉ Leaflet CSS chặn hiển thị (cần cho bản đồ) -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <link
+      rel="preload"
+      href="vendor/fontawesome/webfonts/fa-solid-900.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <!-- CSS phụ: tải không chặn hiển thị -->
+    <link
+      rel="stylesheet"
+      href="vendor/fontawesome/css/all.min.css?v=20261116a"
+      media="print"
+      onload="this.media='all'"
+    />
+    <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css"
+      media="print"
+      onload="this.media='all'"
     />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css"
+      media="print"
+      onload="this.media='all'"
     />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
+      media="print"
+      onload="this.media='all'"
     />
     <link
       rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      href="https://unpkg.com/leaflet-control-geocoder@4.0.0/dist/Control.Geocoder.css"
+      media="print"
+      onload="this.media='all'"
     />
-    <!-- Geocoder: Tìm kiếm địa chỉ -->
     <link
       rel="stylesheet"
-      href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+      media="print"
+      onload="this.media='all'"
     />
-    <link rel="stylesheet" href="style.css?v=20261112e" />
+    <noscript>
+      <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=20261116a" />
+    </noscript>
+    <link rel="stylesheet" href="style.css?v=20261116a" />
   </head>
 
   <body>
@@ -389,11 +419,11 @@
 
             <div class="date-input-group">
               <div class="date-field">
-                <label>Từ ngày</label>
+                <label for="input-start">Từ ngày</label>
                 <input type="date" id="input-start" />
               </div>
               <div class="date-field">
-                <label>Đến ngày</label>
+                <label for="input-end">Đến ngày</label>
                 <input type="date" id="input-end" />
               </div>
             </div>
@@ -404,7 +434,7 @@
         </div>
 
         <div class="filter-group">
-          <label class="filter-label">Đánh giá KQXN</label>
+          <label class="filter-label" for="f-general">Đánh giá KQXN</label>
           <select id="f-general" onchange="applyFilters()">
             <option value="all">-- Tất cả --</option>
             <option value="Đạt">Đạt</option>
@@ -413,7 +443,7 @@
         </div>
 
         <div class="filter-group">
-          <label class="filter-label">Đơn vị / CSCCN</label>
+          <label class="filter-label" for="f-ward">Đơn vị / CSCCN</label>
           <select id="f-ward" onchange="applyFilters()">
             <option value="all">-- Tất cả --</option>
           </select>
@@ -464,7 +494,7 @@
           </div>
         </div>
         <div class="filter-group">
-          <label class="filter-label">NỘI SUY THEO THÔNG SỐ</label>
+          <label class="filter-label" for="idw-selector">NỘI SUY THEO THÔNG SỐ</label>
           <select
             id="idw-selector"
             class="filter-select"
@@ -549,7 +579,7 @@
           <i class="fas fa-flask-vial"></i> KẾT QUẢ NGHIÊN CỨU
         </button>
       </aside>
-      <div id="main">
+      <main id="main">
         <div id="map"></div>
         <div id="table-area" class="table-expanded">
           <div
@@ -589,7 +619,7 @@
             </table>
           </div>
         </div>
-      </div>
+      </main>
       <!-- Analytics View (Tab giả dưới dạng Modal) -->
       <div id="analytics-overlay">
         <button onclick="toggleAnalytics(false)" class="btn-close-custom">
@@ -841,9 +871,12 @@
         <div class="ai-icon-wrapper">
           <i class="fa-solid fa-sparkles"></i>
           <img
-            src="https://github.com/hcdc-ap/images-host/blob/main/images/hcdclogo.png?raw=true"
+            src="icons/hcdclogo-96.png"
             alt="HCDC WebGIS"
             class="centered-image"
+            width="42"
+            height="42"
+            fetchpriority="high"
           />
         </div>
       </div>
@@ -918,39 +951,23 @@
           </div>
         </div>
       </div>
-      <!-- Scripts -->
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-      <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-      <!-- Nạp Turf.js từ CDN chính thức -->
-      <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-      <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-      <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
-      <!-- Browser Print: In bản đồ -->
-      <script src="https://unpkg.com/leaflet.browser.print/dist/leaflet.browser.print.min.js"></script>
-      <!-- Thêm vào trong thẻ <head> -->
-      <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-      <!-- MODULE 4: xuất PDF cho Modal Kết quả nghiên cứu -->
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-      <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
-      />
-
+      <!-- Scripts: defer giữ đúng thứ tự thực thi nhưng không chặn phân tích HTML.
+           XLSX / jsPDF / html2canvas được nạp lười qua loadLib() trong app.js. -->
+      <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <script defer src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+      <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+      <script defer src="vendor/turf/turf-6.5.0-custom.min.js?v=20261116a"></script>
+      <script defer src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+      <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+      <script defer src="https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
+      <script defer src="https://unpkg.com/leaflet-control-geocoder@4.0.0/dist/Control.Geocoder.js"></script>
+      <script defer src="https://unpkg.com/leaflet.browser.print@2.0.2/dist/leaflet.browser.print.min.js"></script>
+      <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
       <!-- MODULE 2: lõi tính toán AHP dùng chung (đã kiểm định qua test/ahp_test.js) -->
-      <script src="ahp-core.js?v=20261112e"></script>
+      <script defer src="ahp-core.js?v=20261116a"></script>
       <!-- MODULE 3: lõi gộp mẫu->điểm + chấm điểm nguy cơ (đã kiểm định qua test/scoring_test.js) -->
-      <script src="scoring-core.js?v=20261112e"></script>
-      <script src="app.js?v=20261112e"></script>
+      <script defer src="scoring-core.js?v=20261116a"></script>
+      <script defer src="app.js?v=20261116a"></script>
 
       <!-- Modal Nạp Dữ Liệu -->
       <div id="import-modal" class="custom-modal" style="display: none">

@@ -24,6 +24,33 @@
           });
         }
         // --- 1. KHAI BÁO BIẾN TOÀN CỤC ---
+        // --- NẠP LƯỜI THƯ VIỆN NẶNG (chỉ cần khi nhập/xuất file) ---
+        const LAZY_LIBS = {
+          xlsx: { url: 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js', ready: () => window.XLSX },
+          jspdf: { url: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', ready: () => window.jspdf },
+          html2canvas: { url: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', ready: () => window.html2canvas },
+        };
+        const lazyLibPromises = {};
+        function loadLib(name) {
+          const lib = LAZY_LIBS[name];
+          if (lib.ready()) return Promise.resolve();
+          if (!lazyLibPromises[name]) {
+            lazyLibPromises[name] = new Promise((resolve, reject) => {
+              const el = document.createElement('script');
+              el.src = lib.url;
+              el.async = true;
+              el.onload = () => resolve();
+              el.onerror = () => {
+                delete lazyLibPromises[name];
+                reject(new Error('Không tải được thư viện ' + name));
+              };
+              document.head.appendChild(el);
+            });
+          }
+          return lazyLibPromises[name];
+        }
+        window.loadLib = loadLib;
+
         let allData = [];
         let allUnits = [];
         let currentReportTags = {}; // Phải khai báo ở đây để dùng chung cho cả 2 hàm
@@ -405,7 +432,7 @@
         // Hàm tạo nội dung (giữ nguyên logic thông minh của chúng ta)
         function updateLegendContent(isHeatmapActive) {
           let html = `
-          <h4 style="margin-bottom:10px; border-bottom:1px solid #34495e; padding-bottom:5px;">Legend</h4>
+          <div role="heading" aria-level="2" style="margin-bottom:10px; border-bottom:1px solid #34495e; padding-bottom:5px; font-weight:bold;">Legend</div>
           <div class="legend-item"><i style="background: #008b99;"></i> <span>Mẫu đạt</span></div>
           <div class="legend-item"><i style="background: #f26522;"></i> <span>Mẫu Không đạt</span></div>
           <div class="legend-item"><span class="legend-line" style="background: #34495e;"></span> <span>Ranh giới hành chính</span></div>
@@ -649,26 +676,13 @@
               const val = sumV / sumW;
               // ✂️ CLIP AN TOÀN (KIỂM TRA HÌNH HỌC TRƯỚC)
               if (hcmPoly) {
-                try {
-                  // Kiểm tra tính hợp lệ của đa giác trước khi intersect
-                  if (!turf.booleanValid(hcmPoly) || !turf.booleanValid(cell)) {
-                    throw new Error('Invalid geometry');
-                  }
-                  const clipped = turf.intersect(cell, hcmPoly);
-                  if (clipped && turf.booleanValid(clipped)) {
-                    clipped.properties = {
-                      val,
-                    };
-                    finalFeatures.push(clipped);
-                  }
-                } catch (e) {
-                  // Fallback: Dùng center check nếu intersect lỗi
-                  if (turf.booleanPointInPolygon(center, hcmPoly)) {
-                    cell.properties = {
-                      val,
-                    };
-                    finalFeatures.push(cell);
-                  }
+                // Turf 6.5.0 không có booleanValid nên trước đây nhánh intersect luôn ném lỗi
+                // và rơi vào kiểm tra tâm ô. Giữ đúng kết quả đó nhưng bỏ chi phí ném lỗi mỗi ô.
+                if (turf.booleanPointInPolygon(center, hcmPoly)) {
+                  cell.properties = {
+                    val,
+                  };
+                  finalFeatures.push(cell);
                 }
               } else {
                 // Trường hợp không có ranh giới HCM
@@ -880,9 +894,19 @@
   });
 }
         // --- 3. CÁC HÀM XỬ LÝ DỮ LIỆU ---
-        async function init() {
+        let initPromise = null;
+        function init() {
+          // Gộp các lần gọi trùng (onload + đăng nhập + nạp Excel) vào một lượt tải duy nhất
+          if (initPromise) return initPromise;
+          initPromise = initInternal().finally(() => {
+            initPromise = null;
+          });
+          return initPromise;
+        }
+        async function initInternal() {
           try {
             console.log('🚀 Đang khởi tạo hệ thống Sentinel-AI...');
+            const thresholdsReady = loadThresholdConfigs();
             let allFetchedData = [];
             let from = 0;
             let to = 999;
@@ -949,9 +973,9 @@
             });
 
             // 3. Tải ranh giới & bản đồ phụ
-            await loadHCMBoundary();
-            await loadRiskLocations();
+            await Promise.all([loadHCMBoundary(), loadRiskLocations()]);
 
+            await thresholdsReady;
             // 4. Cấu hình Slider (Tầm nhìn từ 2024, Tiêu điểm 2026)
             setupSlider();
 
@@ -1020,7 +1044,14 @@
           }
         }
 
+        let applyFiltersTimer = null;
+        function scheduleApplyFilters() {
+          clearTimeout(applyFiltersTimer);
+          applyFiltersTimer = setTimeout(applyFilters, 150);
+        }
+
         function applyFilters() {
+          clearTimeout(applyFiltersTimer);
           const slider = document.getElementById('time-slider');
           if (!slider || !slider.noUiSlider) return;
 
@@ -1093,6 +1124,8 @@
             statCountEl.innerHTML = `Tìm thấy: <span class="highlight">${filteredData.length}</span> mẫu`;
           }
 
+          const newMarkers = [];
+          const rowsFrag = document.createDocumentFragment();
           filteredData.forEach((p) => {
             const isFail = p.danh_gia_tu_dong !== 'Đạt';
             const errs = geterrs(p);
@@ -1142,9 +1175,8 @@
                 marker.openPopup();
               });
 
-              // Thêm vào các lớp hiển thị
-              markers.addLayer(marker);
-              monitoringPointsLayer.addLayer(marker);
+              // Thêm vào các lớp hiển thị (gom lại, thêm một lượt sau vòng lặp)
+              newMarkers.push(marker);
               if (isFail) heatPoints.push([p.lat, p.lng, 0.8]);
             }
 
@@ -1179,9 +1211,16 @@
                   );
                 }
               };
-              tbody.appendChild(row);
+              rowsFrag.appendChild(row);
             }
           });
+
+          // Thêm hàng loạt: nhanh hơn nhiều so với addLayer/appendChild từng phần tử
+          if (newMarkers.length) {
+            markers.addLayers(newMarkers);
+            newMarkers.forEach((m) => monitoringPointsLayer.addLayer(m));
+          }
+          if (tbody) tbody.appendChild(rowsFrag);
 
           // Cập nhật lớp nhiệt
           if (heatmapLayer) heatmapLayer.setLatLngs(heatPoints);
@@ -1465,6 +1504,10 @@
               max: finalMax,
             },
             step: 24 * 60 * 60 * 1000, // Bước nhảy 1 ngày
+            handleAttributes: [
+              { 'aria-label': 'Ngày bắt đầu' },
+              { 'aria-label': 'Ngày kết thúc' },
+            ],
           });
 
           // Hàm phụ: Convert Timestamp sang YYYY-MM-DD cho ô Input
@@ -1484,8 +1527,8 @@
             if (handle === 0) startInput.value = toISO(s);
             if (handle === 1) endInput.value = toISO(e);
 
-            // Kích hoạt lọc dữ liệu
-            applyFilters();
+            // Gộp các sự kiện update liên tiếp (lúc tạo slider, lúc kéo) thành một lần lọc
+            scheduleApplyFilters();
           });
 
           // --- B. ĐỒNG BỘ: INPUT -> SLIDER ---
@@ -1750,8 +1793,7 @@
             };
           });
         }
-        // Gọi hàm này trong init() hoặc ngay khi load trang
-        loadThresholdConfigs();
+        // Được gọi trong initInternal() (sau khi đăng nhập) thay vì ngay khi tải trang
         /**
          * @param {string} icon - 'success', 'error', 'warning', 'info'
          * @param {string} title - Nội dung thông báo
@@ -1770,6 +1812,7 @@ async function previewExcel(input) {
   
   reader.onload = async function (e) {
     try {
+      await loadLib('xlsx');
       const data = new Uint8Array(e.target.result);
       // Đọc file với cellDates để xử lý ngày tháng chuẩn
       const workbook = XLSX.read(data, {
@@ -2863,7 +2906,13 @@ async function executeImport() {
         /**
          * Xuất dữ liệu từ 3 bảng thống kê ra 1 file Excel đa sheet
          */
-        function exportAnalyticsToExcel() {
+        async function exportAnalyticsToExcel() {
+          try {
+            await loadLib('xlsx');
+          } catch (err) {
+            showToast('error', err.message);
+            return;
+          }
           showToast('info', 'Đang khởi tạo file Excel...');
 
           // 1. Lấy thông tin giai đoạn để đặt tên file cho chuẩn
@@ -4922,6 +4971,7 @@ async function executeImport() {
             'kiemchung';
 
           try {
+            await Promise.all([loadLib('jspdf'), loadLib('html2canvas')]);
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pageWidth = pdf.internal.pageSize.getWidth();
@@ -5517,6 +5567,7 @@ async function executeImport() {
           }
           showToast('info', 'Đang tạo file PDF...');
           try {
+            await Promise.all([loadLib('jspdf'), loadLib('html2canvas')]);
             const element = document.getElementById('research-tab-kiemchung');
             const canvas = await html2canvas(element, { scale: 1.5, backgroundColor: '#ffffff' });
             const imgData = canvas.toDataURL('image/png');
@@ -6709,6 +6760,7 @@ async function executeImport() {
           showToast('info', 'Đang đóng gói danh sách kiểm tra...');
 
           try {
+            await loadLib('xlsx');
             const excelData = currentOptimalData.map((item, index) => ({
               STT: index + 1,
               'Đơn vị hành chính': item.ward_name,
@@ -7394,5 +7446,5 @@ async function executeImport() {
             name: fileName,
           };
         }
-        //INIT()
-        init();
+        // init() được gọi từ window.onload (khi đã có phiên) hoặc sau khi đăng nhập thành công.
+        // Không gọi vô điều kiện ở đây nữa: trước đây làm toàn bộ dữ liệu bị tải 2 lần.
