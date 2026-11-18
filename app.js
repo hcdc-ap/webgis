@@ -841,24 +841,23 @@
                   return dist <= radiusKm;
                 })
               : [];
-          // Gộp các mẫu cùng một điểm/đơn vị thành 1 dòng (trước đây mỗi mẫu 1 dòng -> trùng lặp)
+          // Gộp theo TÊN ĐƠN VỊ: một dòng cho mỗi đơn vị (lấy điểm gần nhất), cộng dồn số mẫu / số mẫu không đạt
           const stationMap = new Map();
           nearbyStations.forEach((s) => {
-            const key = `${s.csccn_name || ''}|${Number(s.lat).toFixed(5)}|${Number(s.lng).toFixed(5)}`;
+            const key = String(s.csccn_name || '').trim().toLowerCase();
+            const dd = turf.distance(turf.point([lng, lat]), turf.point([s.lng, s.lat]), { units: 'kilometers' });
+            const ptKey = `${Number(s.lat).toFixed(5)}|${Number(s.lng).toFixed(5)}`;
             let g = stationMap.get(key);
             if (!g) {
-              g = { lat: s.lat, lng: s.lng, name: s.csccn_name, total: 0, fail: 0 };
+              g = { name: s.csccn_name, lat: s.lat, lng: s.lng, d: dd, total: 0, fail: 0, pts: new Set() };
               stationMap.set(key, g);
             }
             g.total++;
+            g.pts.add(ptKey);
             if (s.danh_gia_tu_dong !== 'Đạt') g.fail++;
+            if (dd < g.d) { g.d = dd; g.lat = s.lat; g.lng = s.lng; }
           });
-          const stations = [...stationMap.values()]
-            .map((g) => ({
-              ...g,
-              d: turf.distance(turf.point([lng, lat]), turf.point([g.lng, g.lat]), { units: 'kilometers' }),
-            }))
-            .sort((a, b) => a.d - b.d);
+          const stations = [...stationMap.values()].sort((a, b) => a.d - b.d);
           // 3. Vẽ lên giao diện
           list.innerHTML = '';
           panel.style.display = 'block';
@@ -871,7 +870,7 @@
       }, ${Number(g.lng)}], 16)">
         <div class="risk-info">
           <span class="risk-name">📍 ${escapeHtml(g.name)}</span>
-          <span class="risk-type">${g.total} mẫu${g.fail > 0 ? ` · ${g.fail} không đạt` : ' · đều đạt'}</span>
+          <span class="risk-type" title="${g.pts.size > 1 ? g.pts.size + ' điểm · ' : ''}${g.total} mẫu${g.fail > 0 ? ' · ' + g.fail + ' không đạt' : ' · đạt'}">${g.pts.size > 1 ? `${g.pts.size} điểm · ` : ''}${g.total} mẫu${g.fail > 0 ? ` · ${g.fail} không đạt` : ' · đạt'}</span>
         </div>
         <span class="risk-distance" style="background:${color}">${g.d.toFixed(2)}km</span>
       </div>`;
