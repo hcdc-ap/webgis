@@ -410,6 +410,10 @@
           })
           .addTo(map);
 
+        // Lớp vùng đệm (bán kính quanh điểm không đạt) — trước đây chưa được khai báo -> ReferenceError khi bấm điểm.
+        const bufferLayer = L.layerGroup().addTo(map);
+        window.bufferLayer = bufferLayer;
+
         function createBufferZone(lat, lng, radiusKm = 0.5) {
           bufferLayer.clearLayers();
           const center = [lng, lat]; // Turf dùng [lng, lat]
@@ -2330,16 +2334,9 @@ async function executeImport() {
             map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
             if (targetMarker) {
               setTimeout(() => {
-                // markercluster chỉ gọi callback khi điểm đang nằm trong cụm; nếu điểm đã hiển thị
-                // riêng lẻ thì callback không chạy -> luôn có phương án dự phòng mở popup trực tiếp.
-                let opened = false;
-                const open = () => {
-                  if (opened) return;
-                  opened = true;
-                  targetMarker.openPopup();
-                };
-                if (markers.zoomToShowLayer) markers.zoomToShowLayer(targetMarker, open);
-                setTimeout(open, 900);
+                // Marker là circleMarker (không có icon) nên KHÔNG dùng markers.zoomToShowLayer
+                // (gây lỗi '_icon' của markercluster). Bay tới rồi mở popup trực tiếp.
+                targetMarker.openPopup();
               }, 1700);
             } else {
               showToast('info', 'Mẫu đang bị bộ lọc ẩn; đã chuyển đến vị trí trên bản đồ.');
