@@ -2225,8 +2225,21 @@ async function executeImport() {
             const thresholdMap = new Map(
               cacheThresholds.map((t) => [t.param_code, t])
             );
-            const unitMap = Object.fromEntries(
-              cacheUnits.map((u) => [u.maphuong, u.csccn_name])
+            // Tên đơn vị cho MỌI chế độ (nội + ngoại kiểm), tra không phân biệt hoa/thường
+            // (cacheUnits chỉ chứa nội kiểm nên trước đây ngoại kiểm hiển thị mã).
+            const nameSource =
+              typeof allUnits !== 'undefined' && allUnits && allUnits.length
+                ? allUnits
+                : cacheUnits;
+            const nameByCode = new Map(
+              nameSource.map((u) => [String(u.maphuong || '').trim().toLowerCase(), u.csccn_name])
+            );
+            const unitMap = new Proxy(
+              {},
+              {
+                get: (_, k) =>
+                  typeof k === 'string' ? nameByCode.get(k.trim().toLowerCase()) : undefined,
+              }
             );
 
             renderComplianceTable(dataToAnalyze, cacheUnits);
@@ -2429,7 +2442,7 @@ async function executeImport() {
               alerts.push(`
                 <tr>
                     <td class="fw-bold text-dark">${
-                      unitMap[p.maphuong_temp] || p.maphuong_temp
+                      escapeHtml(unitMap[p.maphuong_temp] || p.maphuong_temp)
                     }</td>
                     <td class="text-center">${levelBadge}</td>
                     <td class="small">
@@ -2607,7 +2620,7 @@ async function executeImport() {
             .map(([id, data]) => {
               return `
             <tr>
-                <td class="fw-bold">${unitMap[id] || id}</td>
+                <td class="fw-bold">${escapeHtml(unitMap[id] || id)}</td>
                 <td class="text-center fw-bold bg-light">${data.total}</td>
                 <td class="text-center text-success">${data.hl_ok}</td>
                 <td class="text-center ${
