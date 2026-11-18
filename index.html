@@ -2,6 +2,8 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://yjtbvlydphuvuebsyavh.supabase.co wss://yjtbvlydphuvuebsyavh.supabase.co https://nominatim.openstreetmap.org https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HCDC-SENTINEL WEBGIS</title>
     <link rel="manifest" href="manifest.json" />
@@ -27,8 +29,7 @@
     <!-- Thư viện chuẩn: chỉ Leaflet CSS chặn hiển thị (cần cho bản đồ) -->
     <link
       rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
     <link
       rel="preload"
       href="vendor/fontawesome/webfonts/fa-solid-900.woff2"
@@ -47,32 +48,27 @@
       rel="stylesheet"
       href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css"
       media="print"
-      onload="this.media='all'"
-    />
+      onload="this.media='all'" integrity="sha384-lPzjPsFQL6te2x+VxmV6q1DpRxpRk0tmnl2cpwAO5y04ESyc752tnEWPKDfl1olr" crossorigin="anonymous" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css"
       media="print"
-      onload="this.media='all'"
-    />
+      onload="this.media='all'" integrity="sha384-5kMSQJ6S4Qj5i09mtMNrWpSi8iXw230pKU76xTmrpezGnNJQzj0NzXjQLLg+jE7k" crossorigin="anonymous" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css"
       media="print"
-      onload="this.media='all'"
-    />
+      onload="this.media='all'" integrity="sha384-PSZaVsyG9jDu8hFaSJev5s/9poIJlX7cuxSGdqCgXRHpo2DzIaZAyCd2rG/DJJmV" crossorigin="anonymous" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet-control-geocoder@4.0.0/dist/Control.Geocoder.css"
       media="print"
-      onload="this.media='all'"
-    />
+      onload="this.media='all'" integrity="sha384-dtZhMVplthx1XPTPFEKMM5M6e369Paz7gy0QTqvuQKB42lq4FIPsrqe125Ho6bfO" crossorigin="anonymous" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
       media="print"
-      onload="this.media='all'"
-    />
+      onload="this.media='all'" integrity="sha384-Gu3KVV2H9d+yA4QDpVB7VcOyhJlAVrcXd0thEjr4KznfaFPLe0xQJyonVxONa4ZC" crossorigin="anonymous" />
     <noscript>
       <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=20261116a" />
     </noscript>
@@ -960,16 +956,16 @@
       </div>
       <!-- Scripts: defer giữ đúng thứ tự thực thi nhưng không chặn phân tích HTML.
            XLSX / jsPDF / html2canvas được nạp lười qua loadLib() trong app.js. -->
-      <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <script defer src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-      <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+      <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+      <script defer src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js" integrity="sha384-RLIyj5q1b5XJTn0tqUhucRZe40nFTocRP91R/NkRJHwAe4XxnTV77FXy/vGLiec2" crossorigin="anonymous"></script>
+      <script defer src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" integrity="sha384-mFKkGiGvT5vo1fEyGCD3hshDdKmW3wzXW/x+fWriYJArD0R3gawT6lMvLboM22c0" crossorigin="anonymous"></script>
       <script defer src="vendor/turf/turf-6.5.0-custom.min.js?v=20261116a"></script>
-      <script defer src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
-      <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-      <script defer src="https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
-      <script defer src="https://unpkg.com/leaflet-control-geocoder@4.0.0/dist/Control.Geocoder.js"></script>
-      <script defer src="https://unpkg.com/leaflet.browser.print@2.0.2/dist/leaflet.browser.print.min.js"></script>
-      <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      <script defer src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js" integrity="sha384-/gBUOLHADjY2rp6bHB0IyW9AC28q4OsnirJScje4l1crgYW7Qarx3dH8zcqcUgmy" crossorigin="anonymous"></script>
+      <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" integrity="sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0" crossorigin="anonymous"></script>
+      <script defer src="https://unpkg.com/@supabase/supabase-js@2.119.0/dist/umd/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
+      <script defer src="https://unpkg.com/leaflet-control-geocoder@4.0.0/dist/Control.Geocoder.js" integrity="sha384-GwOxBPYQUJoAtZlP9zcDGxDFHdgRasiwmwj4JQoxhWpOBaETX1aOU/qm8fsP4Hf5" crossorigin="anonymous"></script>
+      <script defer src="https://unpkg.com/leaflet.browser.print@2.0.2/dist/leaflet.browser.print.min.js" integrity="sha384-Ew157ulXB/iD4kg1NWyrQ1RU/ROFfBNeg5eSj6phTDE9xIbsbHSJboOcyC0R14IO" crossorigin="anonymous"></script>
+      <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js" integrity="sha384-nLoOnA/BDh8A/jxqtckg4DumuCGOBYUnNJLZdQz/zfYNp3wcjGSoWTAzgko06G/2" crossorigin="anonymous"></script>
       <!-- MODULE 2: lõi tính toán AHP dùng chung (đã kiểm định qua test/ahp_test.js) -->
       <script defer src="ahp-core.js?v=20261116a"></script>
       <!-- MODULE 3: lõi gộp mẫu->điểm + chấm điểm nguy cơ (đã kiểm định qua test/scoring_test.js) -->

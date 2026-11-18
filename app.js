@@ -14,6 +14,20 @@
           SUPABASE_URL,
           SUPABASE_KEY
         );
+        // Chống XSS: escape mọi chuỗi từ CSDL/AI trước khi chèn vào innerHTML / popup.
+        function escapeHtml(v) {
+          return String(v ?? '').replace(
+            /[&<>"']/g,
+            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+          );
+        }
+        // Escape đệ quy cho đối tượng/mảng/chuỗi (dùng cho dữ liệu hành động AI)
+        function escapeDeep(v) {
+          if (Array.isArray(v)) return v.map(escapeDeep);
+          if (v && typeof v === 'object')
+            return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escapeDeep(x)]));
+          return typeof v === 'string' ? escapeHtml(v) : v;
+        }
         // Đăng ký Service Worker để biến Web thành App
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
@@ -812,7 +826,7 @@
         s.lat
       }, ${s.lng}], 16)">
         <div class="risk-info">
-          <span class="risk-name">📍 ${s.csccn_name}</span>
+          <span class="risk-name">📍 ${escapeHtml(s.csccn_name)}</span>
           <span class="risk-type">Kết quả: ${s.danh_gia_tu_dong}</span>
         </div>
         <span class="risk-distance" style="background:var(--success)">${d.toFixed(
@@ -825,8 +839,8 @@
             list.innerHTML += `
       <div class="risk-item" style="border-left: 4px solid #008b99;">
         <div class="risk-info">
-          <span class="risk-name">⚠️ ${loc.name}</span>
-          <span class="risk-type">${loc.type}</span>
+          <span class="risk-name">⚠️ ${escapeHtml(loc.name)}</span>
+          <span class="risk-type">${escapeHtml(loc.type)}</span>
         </div>
       </div>`;
           });
@@ -880,9 +894,9 @@
       marker.bindPopup(`
         <div style="text-align:left; min-width: 150px;">
             <strong style="color:${style.color}; font-size: 1.1em; display: block; margin-bottom: 5px;">
-                <i class="fa-solid ${style.icon}"></i> ${loc.name}
+                <i class="fa-solid ${style.icon}"></i> ${escapeHtml(loc.name)}
             </strong>
-            <b>Phân loại:</b> ${loc.type}<br>
+            <b>Phân loại:</b> ${escapeHtml(loc.type)}<br>
             <hr style="margin: 8px 0">
             <button class="btn btn-sm btn-primary w-100" 
                     onclick="map.flyTo([${loc.lat}, ${loc.lng}], 17)">
@@ -1160,7 +1174,7 @@
               // Gán Popup (Đã dùng formatDateDisplay chuẩn)
               marker.bindPopup(`
         <div style="min-width: 200px">
-            <strong style="font-size:1.1rem">${p.csccn_name}</strong><br>
+            <strong style="font-size:1.1rem">${escapeHtml(p.csccn_name)}</strong><br>
             <hr style="margin: 5px 0">
             <b>Ngày lấy mẫu:</b> ${formatDateDisplay(p.sampling_date)}<br>
             <b>Kết quả:</b> <span style="color:${
@@ -1203,7 +1217,7 @@
         <td style="white-space:nowrap">${formatDateDisplay(
           p.sampling_date
         )}</td>
-        <td>${p.csccn_name || 'N/A'}</td>
+        <td>${escapeHtml(p.csccn_name || 'N/A')}</td>
         <td style="color:${isFail ? 'red' : 'green'}"><b>${
                 p.danh_gia_tu_dong
               }</b></td>
@@ -1988,7 +2002,7 @@ async function previewExcel(input) {
         tr.innerHTML = `
           <td class="text-center"><strong>${sttExcel}</strong></td>
           <td>${inputMaphuong || '---'}</td>
-          <td>${row.diachi || '---'}</td>
+          <td>${escapeHtml(row.diachi || '---')}</td>
           <td>${row.loaimau_id || '---'}</td>
           <td>${displayDate || row.ngaylaymau || '---'}</td>
           <td>${sampleCode || '---'}</td>
@@ -2295,11 +2309,16 @@ async function executeImport() {
             map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
             if (targetMarker) {
               setTimeout(() => {
-                if (markers.zoomToShowLayer) {
-                  markers.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
-                } else {
+                // markercluster chỉ gọi callback khi điểm đang nằm trong cụm; nếu điểm đã hiển thị
+                // riêng lẻ thì callback không chạy -> luôn có phương án dự phòng mở popup trực tiếp.
+                let opened = false;
+                const open = () => {
+                  if (opened) return;
+                  opened = true;
                   targetMarker.openPopup();
-                }
+                };
+                if (markers.zoomToShowLayer) markers.zoomToShowLayer(targetMarker, open);
+                setTimeout(open, 900);
               }, 1700);
             } else {
               showToast('info', 'Mẫu đang bị bộ lọc ẩn; đã chuyển đến vị trí trên bản đồ.');
@@ -2870,7 +2889,7 @@ async function executeImport() {
 
               return `
         <tr>
-            <td class="fw-bold">${u.csccn_name}</td>
+            <td class="fw-bold">${escapeHtml(u.csccn_name)}</td>
             <td class="text-center text-muted small">${cap.toLocaleString()}</td>
             <td class="text-center fw-bold text-primary">${required}</td>
             <td class="text-center">${actual}</td>
@@ -3317,7 +3336,7 @@ async function executeImport() {
               return `
               <tr>
                 <td><b>${r.ma_tieu_chi}</b></td>
-                <td>${r.ten_tieu_chi}${warn}</td>
+                <td>${escapeHtml(r.ten_tieu_chi)}${warn}</td>
                 <td>${groupLabel[r.nhom] || r.nhom}</td>
                 <td>${r.vong_dung ?? '—'}</td>
                 <td>${r.n_chuyen_gia}</td>
@@ -4835,7 +4854,7 @@ async function executeImport() {
             .map((c) => {
               return `<tr>
                 <td><b>${c.ma_tieu_chi}</b></td>
-                <td>${c.ten_tieu_chi}</td>
+                <td>${escapeHtml(c.ten_tieu_chi)}</td>
                 <td>${RESEARCH_GROUP_LABEL_FULL[c.nhom] || c.nhom}</td>
                 <td>${c.mdqi !== null ? Number(c.mdqi).toFixed(2) : '—'}</td>
                 <td>${c.mqi !== null ? Number(c.mqi).toFixed(2) : '—'}</td>
@@ -5843,7 +5862,7 @@ async function executeImport() {
                 .replace(/'/g, '"')
                 .replace(/(\w+)(?=\s*:)/g, '"$1"');
 
-              const actionObj = JSON.parse(jsonStr);
+              const actionObj = escapeDeep(JSON.parse(jsonStr));
               actionSection = {
                 title: 'HÀNH ĐỘNG KHUYẾN NGHỊ',
                 type: 'action_timeline',
@@ -5874,7 +5893,7 @@ async function executeImport() {
             if (!finalTitle) rawBody = rawTitle + '\n' + rawBody;
 
             const currentSection = {
-              title: finalTitle.replace(/\*\*/g, '').trim(),
+              title: escapeHtml(finalTitle.replace(/\*\*/g, '').trim()),
               type: 'standard',
               content: [],
             };
@@ -5883,7 +5902,7 @@ async function executeImport() {
               .split('\n')
               .filter((l) => l.trim().length > 0);
             for (let line of bodyLines) {
-              let processedText = line.trim();
+              let processedText = escapeHtml(line.trim());
 
               processedText = processedText
                 .replace(/\[(.*?)\]/g, '<b>[$1]</b>')
@@ -5942,16 +5961,16 @@ async function executeImport() {
       <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #ddd;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
            <small style="color:#666; font-weight:600;">📅 ${
-             item.prediction_date
+             escapeHtml(item.prediction_date)
            }</small>
            <span class="risk-badge ${
              item.risk_level === 'Cao' ? 'high' : 'low'
-           }">${item.risk_level}</span>
+           }">${escapeHtml(item.risk_level)}</span>
         </div>
         <div style="font-size: 0.85rem; color: #555; margin-top: 5px;">
            <i class="fa-solid fa-cloud-sun"></i> ${
-             item.weather_info?.desc || 'N/A'
-           } | ${item.weather_info?.temp || 'N/A'}°C
+             escapeHtml(item.weather_info?.desc || 'N/A')
+           } | ${escapeHtml(item.weather_info?.temp || 'N/A')}°C
         </div>
       </div>
     `;
@@ -5961,7 +5980,7 @@ async function executeImport() {
               if (sec.type === 'action_timeline') {
                 // --- VẼ TIMELINE HÀNH ĐỘNG ---
                 html += `<div style="margin: 20px 0 10px; border-left: 4px solid #00796b; padding-left: 12px;text-align:justify">
-                    <b style="color: #00796b; text-transform: uppercase; font-size: 0.9rem;">${sec.title}</b>
+                    <b style="color: #00796b; text-transform: uppercase; font-size: 0.9rem;">${escapeHtml(sec.title)}</b>
                  </div>`;
 
                 for (let [timeframe, tasks] of Object.entries(sec.data)) {
@@ -6025,7 +6044,7 @@ async function executeImport() {
                 ? item.affected_wards
                 : item.affected_wards.split(/[,\n]/).filter((w) => w.trim());
               zoneContainer.innerHTML = wards
-                .map((w) => `<span class="zone-badge">${w.trim()}</span>`)
+                .map((w) => `<span class="zone-badge">${escapeHtml(w.trim())}</span>`)
                 .join('');
             }
           } catch (err) {
@@ -6143,7 +6162,7 @@ async function executeImport() {
             <div class="risk-popup-container">
                 <div class="risk-popup-header">
                     <span class="risk-label">CAO</span>
-                    <b>${p.tenXa.toUpperCase()}</b>
+                    <b>${escapeHtml(p.tenXa.toUpperCase())}</b>
                 </div>
                 <div class="risk-popup-body">
                     <table class="risk-info-table">
@@ -6193,7 +6212,7 @@ async function executeImport() {
                   loc.lng
                 ) {
                   console.log(
-                    `✅ Khớp cơ sở rủi ro: ${loc.name} (${loc.lat}, ${loc.lng})`
+                    `✅ Khớp cơ sở rủi ro: ${escapeHtml(loc.name)} (${loc.lat}, ${loc.lng})`
                   );
 
                   const marker = L.marker([loc.lat, loc.lng], {
@@ -6205,11 +6224,11 @@ async function executeImport() {
                   }).bindPopup(`
                             <div style="text-align:justify;">
                                 <b style="color:#e74c3c;">⚠️ VỊ TRÍ RỦI RO</b><br>
-                                <b>${loc.name}</b><br>
+                                <b>${escapeHtml(loc.name)}</b><br>
                                 <small>Địa bàn: ${
                                   loc.maphuong || 'Đang cập nhật'
                                 }</small><br>
-                                <small>Loại hình: ${loc.type}</small>
+                                <small>Loại hình: ${escapeHtml(loc.type)}</small>
                             </div>
                         `);
                   marker.addTo(alertPointLayer);
@@ -6490,7 +6509,7 @@ async function executeImport() {
               .map(
                 (w) => `
             <label class="check-item">
-                <input type="checkbox" class="ward-chk" value="${w.maXa}"> ${w.tenXa}
+                <input type="checkbox" class="ward-chk" value="${w.maXa}"> ${escapeHtml(w.tenXa)}
             </label>
         `
               )
@@ -6889,7 +6908,7 @@ async function executeImport() {
             if (data) {
               // 5. Hiển thị câu trả lời (Answer)
               // Chuyển đổi Markdown cơ bản sang HTML
-              botArea.innerHTML = data.answer
+              botArea.innerHTML = escapeHtml(data.answer)
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                 .replace(/### (.*?)<br>/g, '<h5>$1</h5>');

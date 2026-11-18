@@ -1,0 +1,34 @@
+# Môi trường & Secrets
+.env
+.env.local
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+
+# Secrets / token truy cập (KHÔNG BAO GIỜ đưa lên git)
+FIX.txt
+*.env.txt
+
+# Chỉ dùng chạy local
+server.js
+_test_ws.js
+node_modules/
+
+# Khóa/chứng chỉ, backup, dump DB (không bao giờ commit)
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.sql.gz
+*.bak
+backup*/
+fix*.txt
+*token*.txt
+.env.*
+!.env.example
