@@ -532,8 +532,17 @@
           class="mt-3 p-2 border rounded bg-light"
           style="display: none"
         >
-          <h6 class="text-danger">
-            <i class="fas fa-biohazard mr-2"></i> Nguồn nguy cơ lân cận
+          <h6 class="text-danger d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-biohazard mr-2"></i> Nguồn nguy cơ lân cận</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary py-0 px-2"
+              title="Đóng vùng đệm và danh sách"
+              aria-label="Đóng vùng đệm và danh sách"
+              onclick="clearRiskBuffer()"
+            >
+              ✕ Đóng
+            </button>
           </h6>
           <ul
             id="risk-list"
@@ -970,7 +979,7 @@
       <script defer src="ahp-core.js?v=20261116a"></script>
       <!-- MODULE 3: lõi gộp mẫu->điểm + chấm điểm nguy cơ (đã kiểm định qua test/scoring_test.js) -->
       <script defer src="scoring-core.js?v=20261116a"></script>
-      <script defer src="app.js?v=20261119c"></script>
+      <script defer src="app.js?v=20261119d"></script>
 
       <!-- Modal Nạp Dữ Liệu -->
       <div id="import-modal" class="custom-modal" style="display: none">

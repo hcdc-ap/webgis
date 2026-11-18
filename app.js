@@ -414,6 +414,32 @@
         const bufferLayer = L.layerGroup().addTo(map);
         window.bufferLayer = bufferLayer;
 
+        // Tắt vùng đệm + danh sách "Nguồn nguy cơ lân cận" để thao tác việc khác
+        function clearRiskBuffer() {
+          bufferLayer.clearLayers();
+          const panel = document.getElementById('risk-analysis-panel');
+          if (panel) panel.style.display = 'none';
+          const btn = document.getElementById('btn-clear-buffer');
+          if (btn) btn.style.display = 'none';
+        }
+        window.clearRiskBuffer = clearRiskBuffer;
+        // Nút trên bản đồ (chỉ hiện khi đang có vùng đệm)
+        const ClearBufferControl = L.Control.extend({
+          options: { position: 'topleft' },
+          onAdd() {
+            const btn = L.DomUtil.create('button', 'btn btn-sm btn-danger shadow-sm');
+            btn.id = 'btn-clear-buffer';
+            btn.type = 'button';
+            btn.style.display = 'none';
+            btn.textContent = '✕ Tắt vùng đệm';
+            btn.setAttribute('aria-label', 'Tắt vùng đệm');
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', clearRiskBuffer);
+            return btn;
+          },
+        });
+        new ClearBufferControl().addTo(map);
+
         function createBufferZone(lat, lng, radiusKm = 0.5) {
           bufferLayer.clearLayers();
           const center = [lng, lat]; // Turf dùng [lng, lat]
@@ -430,6 +456,8 @@
               dashArray: '5, 5',
             },
           }).addTo(bufferLayer);
+          const clearBtn = document.getElementById('btn-clear-buffer');
+          if (clearBtn) clearBtn.style.display = 'block';
           // Tìm các trạm khác nằm trong vùng nguy cơ này
           const pointsInside = statsData.filter((d) => {
             const pt = turf.point([parseFloat(d.lng), parseFloat(d.lat)]);
@@ -813,29 +841,39 @@
                   return dist <= radiusKm;
                 })
               : [];
+          // Gộp các mẫu cùng một điểm/đơn vị thành 1 dòng (trước đây mỗi mẫu 1 dòng -> trùng lặp)
+          const stationMap = new Map();
+          nearbyStations.forEach((s) => {
+            const key = `${s.csccn_name || ''}|${Number(s.lat).toFixed(5)}|${Number(s.lng).toFixed(5)}`;
+            let g = stationMap.get(key);
+            if (!g) {
+              g = { lat: s.lat, lng: s.lng, name: s.csccn_name, total: 0, fail: 0 };
+              stationMap.set(key, g);
+            }
+            g.total++;
+            if (s.danh_gia_tu_dong !== 'Đạt') g.fail++;
+          });
+          const stations = [...stationMap.values()]
+            .map((g) => ({
+              ...g,
+              d: turf.distance(turf.point([lng, lat]), turf.point([g.lng, g.lat]), { units: 'kilometers' }),
+            }))
+            .sort((a, b) => a.d - b.d);
           // 3. Vẽ lên giao diện
           list.innerHTML = '';
           panel.style.display = 'block';
-          // Hiện Trạm nước (màu xanh) - Chính là 3 trạm bạn thấy ở Console
-          nearbyStations.forEach((s) => {
-            const d = turf.distance(
-              turf.point([lng, lat]),
-              turf.point([s.lng, s.lat]),
-              {
-                units: 'kilometers',
-              }
-            );
+          // Hiện các điểm lấy mẫu lân cận (đã gộp theo điểm)
+          stations.forEach((g) => {
+            const color = g.fail > 0 ? '#f26522' : 'var(--success)';
             list.innerHTML += `
-      <div class="risk-item" style="border-left: 4px solid var(--success); cursor:pointer" onclick="map.flyTo([${
-        s.lat
-      }, ${s.lng}], 16)">
+      <div class="risk-item" style="border-left: 4px solid ${color}; cursor:pointer" onclick="map.flyTo([${
+        Number(g.lat)
+      }, ${Number(g.lng)}], 16)">
         <div class="risk-info">
-          <span class="risk-name">📍 ${escapeHtml(s.csccn_name)}</span>
-          <span class="risk-type">Kết quả: ${s.danh_gia_tu_dong}</span>
+          <span class="risk-name">📍 ${escapeHtml(g.name)}</span>
+          <span class="risk-type">${g.total} mẫu${g.fail > 0 ? ` · ${g.fail} không đạt` : ' · đều đạt'}</span>
         </div>
-        <span class="risk-distance" style="background:var(--success)">${d.toFixed(
-          2
-        )}km</span>
+        <span class="risk-distance" style="background:${color}">${g.d.toFixed(2)}km</span>
       </div>`;
           });
           // Hiện Nguồn nguy cơ (màu đỏ - nếu có)
@@ -848,7 +886,7 @@
         </div>
       </div>`;
           });
-          if (nearbyStations.length === 0 && nearbyRisks.length === 0) {
+          if (stations.length === 0 && nearbyRisks.length === 0) {
             list.innerHTML =
               '<div class="risk-empty">Không tìm thấy đối tượng nào trong bán kính 1km.</div>';
           }
@@ -1210,9 +1248,7 @@
                   updateRiskPanel(e.latlng.lat, e.latlng.lng, 1.0);
                   if (!map.hasLayer(riskLayer)) map.addLayer(riskLayer);
                 } else {
-                  if (window.bufferLayer) bufferLayer.clearLayers();
-                  const panel = document.getElementById('risk-analysis-panel');
-                  if (panel) panel.style.display = 'none';
+                  clearRiskBuffer();
                 }
                 marker.openPopup();
               });
