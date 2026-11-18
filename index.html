@@ -441,6 +441,15 @@
         </div>
 
         <div class="filter-group">
+          <label class="filter-label" for="f-mode">Chế độ kiểm tra</label>
+          <select id="f-mode" onchange="applyFilters()">
+            <option value="all">-- Tất cả --</option>
+            <option value="noikiem">Nội kiểm</option>
+            <option value="ngoaikiem">Ngoại kiểm</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
           <label class="filter-label" for="f-ward">Đơn vị / CSCCN</label>
           <select id="f-ward" onchange="applyFilters()">
             <option value="all">-- Tất cả --</option>

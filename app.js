@@ -961,6 +961,17 @@
             allUnits = unitData;
 
             console.log(`📡 Đã tải ${allUnits.length} đơn vị vào bộ nhớ.`);
+
+            // Gắn chế độ nội kiểm/ngoại kiểm cho từng mẫu (view không có cột mode:
+            // suy ra từ đơn vị lấy mẫu maphuong_temp tra units.mode) để phục vụ bộ lọc.
+            const normMode = (s) => (s ? s.toString().trim().toLowerCase() : '');
+            const unitModeMap = new Map(
+              allUnits.map((u) => [normMode(u.maphuong), normMode(u.mode)])
+            );
+            allData.forEach((d) => {
+              d._mode =
+                normMode(d.mode) || unitModeMap.get(normMode(d.maphuong_temp)) || '';
+            });
             // 2. Khởi tạo danh sách Đơn vị (CSCCN)
             const wards = [...new Set(allData.map((d) => d.csccn_name))]
               .filter((w) => w)
@@ -1060,6 +1071,7 @@
           const [start, end] = slider.noUiSlider.get().map((v) => parseInt(v));
           const general = document.getElementById('f-general').value;
           const ward = document.getElementById('f-ward').value;
+          const modeSel = document.getElementById('f-mode')?.value || 'all';
           const checkedParams = Array.from(
             document.querySelectorAll('.f-param:checked')
           ).map((c) => c.value);
@@ -1070,7 +1082,8 @@
             return (
               time >= start &&
               time <= end &&
-              (ward === 'all' || d.csccn_name === ward)
+              (ward === 'all' || d.csccn_name === ward) &&
+              (modeSel === 'all' || d._mode === modeSel)
             );
           });
 
@@ -1137,6 +1150,7 @@
             if (p.lat && p.lng && !isNaN(p.lat) && !isNaN(p.lng)) {
               marker = L.circleMarker([p.lat, p.lng], {
                 radius: 8,
+                id: p.id,
                 fillColor: isFail ? '#f26522' : '#008b99',
                 color: '#fff',
                 weight: 1,
@@ -1251,9 +1265,8 @@
             errs.push(`Trực khuẩn mủ xanh:${p.ps_aeruginosa}`);
           if (p.staphylococcus_aureus > 0)
             errs.push(`Tụ cầu vàng:${p.staphylococcus_aureus}`);
-          ['vs', 'hl_xn', 'hl_mt', 'hl_vs'].forEach((k) => {
-            if (p[k] === 'K') errs.push(k.toUpperCase());
-          });
+          // vs / hl_xn / hl_mt / hl_vs là cờ TỔNG HỢP suy ra từ các thông số chi tiết ở trên
+          // (vd. Mangan -> hl_xn -> hl_vs) nên KHÔNG liệt kê như thông số không đạt riêng.
           return errs;
         }
 
@@ -1599,10 +1612,7 @@
               errs.push(`Trực khuẩn mủ xanh:${p.ps_aeruginosa}`);
             if (p.staphylococcus_aureus > 0)
               errs.push(`Tụ cầu vàng:${p.staphylococcus_aureus}`);
-            // Kiểm tra các nhóm chỉ tiêu định tính (Đ/K)
-            ['vs', 'hl_xn', 'hl_mt', 'hl_vs'].forEach((k) => {
-              if (p[k] === 'K') errs.push(k.toUpperCase());
-            });
+            // Cờ tổng hợp vs/hl_xn/hl_mt/hl_vs là hệ quả của thông số chi tiết -> không liệt kê.
             const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
             const d = p.sampling_date instanceof Date ? p.sampling_date.toISOString().slice(0, 10) : p.sampling_date;
             csv += `${d},${q(p.csccn_name)},${q(p.danh_gia_tu_dong)},${q(errs.join('|'))}\n`;
@@ -2259,29 +2269,42 @@ async function executeImport() {
           // 1. Tắt ngay cái bảng đang che mắt chúng ta
           toggleTables(false);
 
-          // 2. Tìm điểm vi phạm trên bản đồ
+          // 2. Tìm điểm trên bản đồ (marker là circleMarker nằm trong cluster `markers`,
+          //    có thể không nằm trực tiếp trên map nên tìm trong layer group).
+          const sid = String(id);
           let targetMarker = null;
-          window.map.eachLayer((layer) => {
-            // Kiểm tra xem layer có phải marker và có ID khớp không
-            if (layer instanceof L.Marker && layer.options.id === id) {
-              targetMarker = layer;
-            }
-          });
-
-          if (targetMarker) {
-            // 3. Thực hiện cú "bay" tới điểm vi phạm (Zoom 18 cho rõ nhà dân luôn)
-            window.map.flyTo(targetMarker.getLatLng(), 18, {
-              animate: true,
-              duration: 1.5, // Thời gian bay 1.5 giây cho mượt
-            });
-
-            // 4. Bay xong thì tự động bung Popup thông tin
-            setTimeout(() => {
-              targetMarker.openPopup();
-            }, 1600);
-          } else {
-            showToast('error', 'Không tìm thấy vị trí mẫu này trên bản đồ!');
+          if (typeof markers !== 'undefined' && markers && markers.getLayers) {
+            targetMarker = markers
+              .getLayers()
+              .find((l) => l.options && String(l.options.id) === sid);
           }
+
+          // Mẫu có thể đang bị bộ lọc ẩn -> lấy tọa độ từ kho dữ liệu gốc
+          const rec = allData.find((d) => String(d.id) === sid);
+          const lat = targetMarker ? targetMarker.getLatLng().lat : rec && Number(rec.lat);
+          const lng = targetMarker ? targetMarker.getLatLng().lng : rec && Number(rec.lng);
+
+          if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+            showToast('warning', 'Mẫu này không có tọa độ để hiển thị trên bản đồ.');
+            return;
+          }
+
+          // Đợi bảng đóng xong, tính lại kích thước bản đồ rồi mới bay tới
+          setTimeout(() => {
+            map.invalidateSize();
+            map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
+            if (targetMarker) {
+              setTimeout(() => {
+                if (markers.zoomToShowLayer) {
+                  markers.zoomToShowLayer(targetMarker, () => targetMarker.openPopup());
+                } else {
+                  targetMarker.openPopup();
+                }
+              }, 1700);
+            } else {
+              showToast('info', 'Mẫu đang bị bộ lọc ẩn; đã chuyển đến vị trí trên bản đồ.');
+            }
+          }, 150);
         }
         // HÀM SỬA LỖI CHÍNH: Kiểm tra và tạo tbody nếu thiếu
         function getTableBody(tableId, headHtml) {
