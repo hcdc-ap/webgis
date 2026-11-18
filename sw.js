@@ -1,7 +1,8 @@
 // Service Worker: cài đặt PWA + cache tài nguyên tĩnh để lần mở sau nhanh hơn.
 // Chỉ cache: thư viện CDN, file nội bộ có ?v= (đổi version là tự lấy bản mới), thư mục icons/ và vendor/.
 // KHÔNG đụng tới Supabase, tile bản đồ hay bất kỳ request nào khác (đi thẳng ra mạng như cũ).
-const CACHE = 'hcdc-static-v2';
+// v3: bỏ cache cũ chứa phản hồi 'opaque' (no-cors) -> làm hỏng các thẻ <script integrity crossorigin> (SRI).
+const CACHE = 'hcdc-static-v3';
 const CDN_HOSTS = new Set([
   'unpkg.com',
   'cdnjs.cloudflare.com',
@@ -38,10 +39,13 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(req);
+      let cached = await cache.match(req);
+      // Không bao giờ trả phản hồi opaque cho request CORS (script/css có integrity): sẽ bị trình duyệt từ chối.
+      if (cached && cached.type === 'opaque' && req.mode === 'cors') cached = undefined;
       const network = fetch(req)
         .then((res) => {
-          if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+          // Chỉ cache phản hồi đọc được (CORS/same-origin), không cache opaque.
+          if (res && res.ok && res.type !== 'opaque') cache.put(req, res.clone());
           return res;
         })
         .catch(() => cached);
