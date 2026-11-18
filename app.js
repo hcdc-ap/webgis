@@ -979,12 +979,20 @@
             // Gắn chế độ nội kiểm/ngoại kiểm cho từng mẫu (view không có cột mode:
             // suy ra từ đơn vị lấy mẫu maphuong_temp tra units.mode) để phục vụ bộ lọc.
             const normMode = (s) => (s ? s.toString().trim().toLowerCase() : '');
-            const unitModeMap = new Map(
-              allUnits.map((u) => [normMode(u.maphuong), normMode(u.mode)])
+            const unitByCode = new Map(
+              allUnits.map((u) => [normMode(u.maphuong), u])
             );
+            // View join phân biệt hoa/thường nên mẫu ngoại kiểm hiển thị mã (vd. XABINHM) thay vì tên.
+            // Alias cho mã nhập sai trong dữ liệu gốc (khuyến nghị sửa tại water_reports).
+            const CODE_ALIAS = { xabinhmy: 'xabinhm' };
             allData.forEach((d) => {
-              d._mode =
-                normMode(d.mode) || unitModeMap.get(normMode(d.maphuong_temp)) || '';
+              const code = normMode(d.maphuong_temp);
+              const u = unitByCode.get(code) || unitByCode.get(CODE_ALIAS[code]);
+              d._mode = normMode(d.mode) || (u ? normMode(u.mode) : '');
+              // Chưa có tên đơn vị (đang hiển thị lại mã) -> lấy csccn_name từ bảng units
+              if (u && u.csccn_name && (!d.csccn_name || normMode(d.csccn_name) === code)) {
+                d.csccn_name = u.csccn_name;
+              }
             });
             // 2. Khởi tạo danh sách Đơn vị (CSCCN)
             const wards = [...new Set(allData.map((d) => d.csccn_name))]
