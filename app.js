@@ -975,6 +975,7 @@
                 .from('view_report_results')
                 .select('*')
                 .order('sampling_date', { ascending: false })
+                .order('sample_code', { ascending: true }) // khóa phụ: tránh sót/trùng dòng giữa các trang khi nhiều mẫu cùng ngày
                 .range(from, to);
 
               if (error) throw error;
@@ -1949,6 +1950,9 @@ async function previewExcel(input) {
       const VALID_KHUVUC = ['KHUVUC1', 'KHUVUC2', 'KHUVUC3'];
       
       // 2. XỬ LÝ TỪNG HÀNG TRONG EXCEL
+      // Theo dõi mã mẫu đã gặp TRONG FILE: executeImport() gộp các dòng trùng mamau
+      // (dòng sau thắng) nên nếu không báo ở đây, số mẫu nhập sẽ ít hơn "Tổng cộng" mà không rõ lý do.
+      const seenCodeStt = new Map();
       jsonData.forEach((row, index) => {
         let rowErrors = [];
         let isDuplicate = false;
@@ -1993,8 +1997,10 @@ async function previewExcel(input) {
         if (row.ngaylaymau) {
           let d = row.ngaylaymau;
           if (d instanceof Date && !isNaN(d)) {
-            const offset = d.getTimezoneOffset() * 60000;
-            const localDate = new Date(d.getTime() + offset);
+            // SheetJS (cellDates) trả về Date là 00:00 GIỜ ĐỊA PHƯƠNG của ngày trong ô Excel (có thể lệch vài giây).
+            // Cộng thêm 12 giờ rồi đọc thành phần giờ địa phương => luôn ra đúng ngày, không bị lùi 1 ngày ở múi giờ UTC+7.
+            // (Trước đây cộng getTimezoneOffset() làm lùi 7 giờ nên mọi mẫu bị lưu sớm 1 ngày.)
+            const localDate = new Date(d.getTime() + 12 * 3600 * 1000);
             let day = String(localDate.getDate()).padStart(2, '0');
             let month = String(localDate.getMonth() + 1).padStart(2, '0');
             let year = localDate.getFullYear();
@@ -2016,10 +2022,15 @@ async function previewExcel(input) {
 
         if (!sampleCode) {
           rowErrors.push('Thiếu mã mẫu (mamau)');
+        } else if (seenCodeStt.has(sampleCode)) {
+          rowErrors.push(
+            `Mã mẫu '${escapeHtml(sampleCode)}' trùng với dòng STT ${seenCodeStt.get(sampleCode)} trong cùng file (mỗi mã mẫu chỉ lưu 1 lần)`
+          );
         } else if (usedSampleCodes.has(sampleCode)) {
           isDuplicate = true; // Mã mẫu đã có trên DB (khóa UNIQUE)
         }
         
+        if (sampleCode && !seenCodeStt.has(sampleCode)) seenCodeStt.set(sampleCode, sttExcel);
         const isValid = rowErrors.length === 0;
         if (isValid) {
           validCount++;
