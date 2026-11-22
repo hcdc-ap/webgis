@@ -1,0 +1,19 @@
+{
+  "name": "webgis",
+  "version": "1.0.0",
+  "description": "Hệ thống Sentinel WebGIS không chỉ là một tấm bản đồ, nó là một trợ lý ảo thông minh giúp tối ưu hóa nguồn lực nhân sự của HCDC, đảm bảo mọi giọt nước đến tay người dân đều được giám sát một cách khoa học và chặt chẽ nhất.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.2",
+    "http-proxy-middleware": "^2.0.10"
+  }
+}

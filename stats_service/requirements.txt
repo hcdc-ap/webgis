@@ -1,0 +1,14 @@
+# =====================================================================
+# MODULE 4 — stats_service: Microservice kiểm định thống kê (FastAPI)
+# ---------------------------------------------------------------------
+# Phiên bản PIN CHÍNH XÁC theo môi trường đã cài đặt & kiểm định thực tế
+# (xem stats_service/VERIFICATION.md để biết ngày kiểm định).
+# Cài đặt: pip install -r requirements.txt
+# =====================================================================
+fastapi==0.141.1
+uvicorn==0.52.4
+numpy==2.5.3
+pandas==3.0.5
+scipy==1.18.1
+statsmodels==0.15.0
+scikit-learn==1.9.1

@@ -32,3 +32,11 @@ fix*.txt
 *token*.txt
 .env.*
 !.env.example
+
+# Sinh tự động / cấu hình riêng của máy / dữ liệu thật
+supabase/.temp/
+__pycache__/
+*.pyc
+.vscode/
+*.xlsx
+*.xls
